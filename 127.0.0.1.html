@@ -1,0 +1,1150 @@
+<!DOCTYPE html>
+<!-- saved from url=(0022)http://127.0.0.1:8111/ -->
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+  
+  <meta name="viewport" content="user-scalable=no, width=device-width, initial-scale=1, maximum-scale=1">
+  <!--meta name="viewport" content="width=device-width;initial-scale=1;maximum-scale=1;minimum-scale=1" /-->
+
+  <link href="./127.0.0.1_files/jquery-ui-1.10.3.custom.css" rel="stylesheet">
+  <style>
+    body {
+      background-color: #333;
+      color: #eee;
+      font-family: Tahoma, Verdana, Arial;
+    }
+
+    #mission-objectives {
+      background-color: rgba(20, 30, 25, 0.5);
+      display:table;
+      position: absolute;
+      left: 5px; top: 670px;
+      width: 640px;
+    }
+
+    div.objective {
+/*      border: 1px solid #666;
+      background-color: #444;
+      margin: 8px;
+      padding: 4px;        
+*/
+    }
+/*
+    div#holder.in_progress {
+      background-color: #663;
+    }
+*/
+    div#holder.completed {
+      text-decoration: overlie;
+      color:#462;
+    }
+    div#holder.failed {
+      color: #522;
+      text-decoration: line-through;
+    }
+
+    div.caption {
+      display: table-row;
+      height:20px;
+      background-color: #555;
+      margin: 0px;
+    }
+
+    #draghandle { cursor: move; width:100%; height:20px;}
+
+    #game-chat-root, #hud-evt-msg-root, #hud-dmg-msg-root {
+      display: table;
+      background-color: rgba(20, 30, 25, 0.5);
+      /*padding: 5px;*/
+      position: absolute;
+      left: 650px;
+      width:300px; height: 200px;     
+    }
+
+    #textlines {
+      /*display: table-row;*/
+      overflow: auto;
+      width: 100%;
+      height: 100%;
+    }
+
+    #game-chat-root   { top: 5px; }
+    #hud-evt-msg-root { top: 220px; }
+    #hud-dmg-msg-root { top: 435px; }
+
+    .chat-line {
+    }
+
+    .msg-type-system { color: #ff8; }
+    .msg-type-enemy  { color: #fa8; }
+
+    #map-root {
+      display:table;
+      position: absolute;
+      left: 5px; top: 5px;
+      border: 1px solid #444;
+    }
+
+    #map-canvas {
+      -webkit-user-select: none;
+      -webkit-user-drag: none;
+      -webkit-tap-highlight-color: rgba(0, 0, 0, 0);
+    }
+
+    #indicators-root {
+      background-color: rgba(20, 30, 25, 0.5);
+      display:table;
+      position: absolute;
+      left: 650px; top: 670px;
+      width: 300px;
+    }
+
+    #indicators {
+      overflow:auto;
+      height:100%;
+    }
+
+    #indicators0, #indicators1 {
+      list-style-type: none;
+      margin: 0;
+      padding: 0 0 1.2em;
+      float: left;
+      width: 50%;
+      overflow: hidden;
+    }
+    #indicators0 li, #indicators1 li {
+      margin: 0px;
+    }
+    
+    #state-root {
+      background-color: rgba(20, 30, 25, 0.5);
+      display:table;
+      position: absolute;
+      left: 650px; top: 670px;
+      width: 300px;
+    }
+
+    #state {
+      overflow:auto;
+      height:100%;
+    }
+
+    #state0, #state1 {
+      list-style-type: none;
+      margin: 0;
+      padding: 0 0 1.2em;
+      float: left;
+      width: 50%;
+      overflow: hidden;
+    }
+    #state0 li, #state1 li {
+      margin: 0px;
+    }    
+
+    @font-face {
+      font-family: 'Icons'; 
+      src: url('icons.ttf'); 
+    }
+  </style>
+
+  <script src="./127.0.0.1_files/jquery-1.10.1.min.js"></script>
+  <script src="./127.0.0.1_files/sylvester.src.js"></script>
+  <script src="./127.0.0.1_files/hammer.min.js"></script>
+  <script src="./127.0.0.1_files/jquery-ui-1.10.3.interact.min.js"></script>
+  <!--script src="hammer.fakemultitouch.js"></script-->
+  <!--script src="hammer.showtouches.js"></script-->
+  <script src="./127.0.0.1_files/cookies.js"></script>
+  <script src="./127.0.0.1_files/utils.js"></script>
+
+  <!-- localization preparation -->
+  <script language="javascript" type="text/javascript">
+    loc_tbl = {}
+  </script>
+  <script src="./127.0.0.1_files/primary_objectives"></script>
+  <script src="./127.0.0.1_files/secondary_objectives"></script>
+
+  <script language="javascript" type="text/javascript">
+    map_objects = null;
+    map_info = null;
+    map_image = new Image();
+    //map_image.src = '/map.img'
+
+    cookieLifeTime = 60*60*24*1000
+
+    map_scale = 1.0
+    map_pan = [0, 0]
+
+    prevMousePos = null
+    prevScale = null
+
+    lastT = null
+    blinkNormalT = 0.0
+    blinkHeavyT = 0.0
+    blinkNormalVal = 0.0
+    blinkHeavyVal = 0.0
+
+    lastPlayerPos = null
+    isDraggingMap = false
+    isTransformingMap = false
+
+    lastChatRecId = 0
+    lastEvtMsgId = 0
+    lastDmgMsgId = 0
+
+    hammer_opt = {
+      hold: false, tap:false, doubletap:false,
+      drag:true, dragstart:true, dragend:true, dragup:false, dragdown:false, dragleft:false, dragright:false,
+      swipe:false, swipeup:false, swipedown:false, swipeleft:false, swiperight:false,
+      transform:true, transformstart:true, transformend:true, rotate:false,
+      pinch:false, pinchin:false, pinchout:false, 
+      /*touch:false, release:false,*/
+
+      prevent_default: true,
+      no_mouseevents: true
+   }
+
+    indicator_columns = [
+      [
+        'type', 'speed', 'speed_01', 'speed_02',
+        'pedals', 'pedals0', 'pedals1', 'pedals2', 'pedals3', 'pedals4', 'pedals5', 'pedals6', 'pedals7', 'pedals8',
+        'stick_elevator', 'stick_ailerons',
+        'vario',
+        'altitude_hour', 'altitude_min', 'altitude_10k', 'aviahorizon_roll', 'aviahorizon_pitch', 'aviahorizon_roll1', 'aviahorizon_pitch1',
+        'bank', 'bank1', 'bank2', 'turn', 'turn1', 'turn2',
+        'compass', 'compass1', 'compass2', 'compass3', 'compass4',
+        'clock_hour', 'clock_min', 'clock_sec', 'g_meter',
+        'manifold_pressure', 'manifold_pressure1', 'manifold_pressure2', 'manifold_pressure3',
+        'head_temperature', 'head_temperature1', 'head_temperature2', 'head_temperature3',
+        'mixture', 'mixture1', 'mixture2', 'mixture3',
+        'oxygen',
+        'gears', 'gears1', 'gears2', 'gears_lamp',
+        'flaps', 'trimmer',
+        'weapon1', 'weapon2', 'weapon3',
+        'prop_pitch',
+        'prop_pitch_hour', 'prop_pitch_hour1', 'prop_pitch_hour2', 'prop_pitch_hour3',
+        'prop_pitch_min', 'prop_pitch_min1', 'prop_pitch_min2', 'prop_pitch_min3',
+        'ammo_counter', 'ammo_counter1', 'ammo_counter2', 'ammo_counter3', 'ammo_counter4', 'ammo_counter5', 'ammo_counter6', 'ammo_counter7',
+        'flaps_indicator', 'gears_indicator', 'radiator',
+      ],
+      [
+        'rpm', 'rpm1', 'rpm2', 'rpm3', 'rpm_min', 'rpm1_min', 'rpm2_min', 'rpm3_min', 'rpm_hour', 'rpm1_hour', 'rpm2_hour', 'rpm3_hour',
+        'oil_pressure', 'oil_pressure1', 'oil_pressure2', 'oil_pressure3',
+        'oil_temperature', 'oil_temperature1', 'oil_temperature2', 'oil_temperature3',
+        'water_temperature', 'water_temperature1', 'water_temperature2', 'water_temperature3',
+        'carb_temperature', 'carb_temperature1', 'carb_temperature2', 'carb_temperature3',
+        'fuel', 'fuel1', 'fuel2',
+        'fuel_pressure', 'fuel_pressure1', 'fuel_pressure2', 'fuel_pressure3', 'fuel_consume',
+        'throttle', 'throttle1', 'throttle2',
+        'supercharger', 'supercharger1', 'supercharger2',
+      ]
+    ]
+    
+    state_columns = [
+      [
+        'H, m', 'TAS, km/h', 'IAS, km/h', 'M', 'AoA, deg', 'AoS, deg', 'Ny', 'Vy, m/s', 'Wx, deg/s',
+        'Mfuel, kg', 'Mfuel0, kg', 'Mfuel 1, kg', 'Mfuel0 1, kg', , 'Mfuel 2, kg', 'Mfuel0 2, kg',
+        'aileron, %', 'elevator, %', 'rudder, %', 'flaps, %', 'gear, %', 'airbrake, %'
+      ],
+      [
+        'throttle 1, %', 'RPM throttle 1, %', 'mixture 1, %', 'radiator 1, %', 'compressor stage 1', 'magneto 1', 'feathered 1', 'power 1, hp', 'RPM 1', 'manifold pressure 1, atm',
+          'water temp 1, C', 'oil temp 1, C', 'pitch 1, deg', 'thrust 1, kgs', 'efficiency 1, %',
+        'throttle 2, %', 'RPM throttle 2, %', 'mixture 2, %', 'radiator 2, %', 'compressor stage 2', 'magneto 2', 'feathered 2', 'power 2, hp', 'RPM 2', 'manifold pressure 2, atm',
+          'water temp 2, C', 'oil temp 2, C', 'pitch 2, deg', 'thrust 2, kgs', 'efficiency 2, %',
+        'throttle 3, %', 'RPM throttle 3, %', 'mixture 3, %', 'radiator 3, %', 'compressor stage 3', 'magneto 3', 'feathered 3', 'power 3, hp', 'RPM 3', 'manifold pressure 3, atm',
+          'water temp 3, C', 'oil temp 3, C', 'pitch 3, deg', 'thrust 3, kgs', 'efficiency 3, %',
+        'throttle 4, %', 'RPM throttle 4, %', 'mixture 4, %', 'radiator 4, %', 'compressor stage 4', 'magneto 4', 'feathered 4', 'power 4, hp', 'RPM 4', 'manifold pressure 4, atm',
+          'water temp 4, C', 'oil temp 4, C', 'pitch 4, deg', 'thrust 4, kgs', 'efficiency 4, %'
+      ]
+    ]
+
+    function format_mission_data(mission) {
+      obj_prim = []
+      obj_sec = []
+
+      if ('objectives' in mission && mission['objectives'] != null) {
+        for (var i=0; i<mission['objectives'].length; ++i) {
+          var obj = mission['objectives'][i];
+          if (obj['status'] != "undefined") {
+            (obj['primary'] ? obj_prim : obj_sec).push(obj);
+          }
+        }
+      }
+
+      objectiveElem = function(base, i) {
+        if (i<base.children().length)
+          return base.children().eq(i);
+        var elem = $('<div class="objective"><div id="holder"><div id="text"/></div></div>');
+        base.append(elem);
+        return elem;
+      }
+
+      updateObjectives = function(root, objectives) {
+        for (var i=0; i<objectives.length; ++i) {
+          var elem = objectiveElem(root, i)
+          elem.find('#text').text(objectives[i]['text']);
+          elem.find('#holder').attr('class', objectives[i]['status'])
+          elem.css('display', 'block');
+        }
+        for (var i=objectives.length; i<root.children().length; ++i) {
+          root.children().eq(i).css('display', 'none');
+        }
+      }
+
+      updateObjectives($('#objectives-primary'), obj_prim);
+      updateObjectives($('#objectives-secondary'), obj_sec);
+    }
+
+
+
+    function addWheelHandler(elem, onWheel) {
+      if (elem.addEventListener) {
+        if ('onwheel' in document) {
+          // IE9+, FF17+
+          elem.addEventListener("wheel", onWheel, false);
+        } else if ('onmousewheel' in document) {
+          // obsolete version
+          elem.addEventListener("mousewheel", onWheel, false);
+        } else {
+          // 3.5 <= Firefox < 17
+          elem.addEventListener("MozMousePixelScroll", onWheel, false);
+        }
+      } else { // IE<9
+        elem.attachEvent("onmousewheel", onWheel);
+      }
+    }
+
+    function clampMapPan() {
+      var canvas = document.getElementById('map-canvas')
+      map_pan[0] = clamp(map_pan[0], -(map_scale-1.0)*canvas.width, 0)
+      map_pan[1] = clamp(map_pan[1], -(map_scale-1.0)*canvas.height, 0)
+    }
+   
+
+    function mapOnWheel(e) {
+      e = e || window.event;
+      var delta = e.wheelDelta ? e.wheelDelta : (e.deltaY || e.detail)*-40
+      delta *= map_scale * 0.8
+
+      var offsX = (e.offsetX!=undefined) ? e.offsetX : (e.pageX-$('#map-canvas').offset().left)
+      var offsY = (e.offsetY!=undefined) ? e.offsetY : (e.pageY-$('#map-canvas').offset().top)
+      map_scale_new = clamp(map_scale + delta * 0.001, 1.0, 15.0)
+      map_pan[0] = offsX - (offsX - map_pan[0])*map_scale_new / map_scale
+      map_pan[1] = offsY - (offsY - map_pan[1])*map_scale_new / map_scale
+      map_scale = map_scale_new
+      clampMapPan()
+
+      redraw_map(0.0)
+
+      e.preventDefault ? e.preventDefault() : (e.returnValue = false);
+    }
+
+    function on_touch_event(e) {
+      if (!e.gesture) // ???
+        return
+
+      if (e.type == 'dragstart')
+        isDraggingMap = true
+      else if (e.type == 'transformstart')
+        isTransformingMap = true
+      else if (e.type == 'dragend')
+        isDraggingMap = false
+      else if (e.type == 'transformend')
+        isTransformingMap = false
+      else if (e.type == 'drag' || e.type == 'transform') {
+        if (e.type == 'transform') {
+          scale0 = map_scale
+          map_scale = clamp(map_scale * e.gesture.scale / prevScale, 1.0, 3.0)
+
+          // scale shift
+          var offsX = e.gesture.center.pageX - $('#map-canvas').offset().left
+          var offsY = e.gesture.center.pageY - $('#map-canvas').offset().top
+          map_pan[0] = offsX - (offsX - map_pan[0])*map_scale / scale0
+          map_pan[1] = offsY - (offsY - map_pan[1])*map_scale / scale0
+        }
+
+        // drag shift
+        map_pan[0] += e.gesture.center.pageX - prevMousePos[0]
+        map_pan[1] += e.gesture.center.pageY - prevMousePos[1]
+
+        clampMapPan()
+        redraw_map(0.0)
+      } else {
+        console.log('Unexpected event type')
+        console.log(e)
+        return
+      }
+      prevMousePos = [e.gesture.center.pageX, e.gesture.center.pageY]
+      prevScale = e.gesture.scale
+    }
+
+
+    function calcMapObjectColor(item) {
+      if (('blink' in item) && (item['blink'])) {
+        var bv = (item['blink']==2 ? blinkHeavyVal : blinkNormalVal)
+
+        var c0 = item['color[]']
+        var c1 = [255, 255, 0]
+        var c = rgb_to_hex(Math.floor(lerp(c0[0], c1[0], bv)), Math.floor(lerp(c0[1], c1[1], bv)), Math.floor(lerp(c0[2], c1[2], bv)))
+        return c
+      } else {
+        return item['color']
+      }
+    }
+
+    function drawMapGrid(canvas) {
+      if (!map_info || !('map_min' in map_info))
+        return
+
+      var ctx = canvas.getContext('2d')
+      var w = canvas.width
+      var h = canvas.height
+      var mapMin = map_info['map_min']
+      var mapMax = map_info['map_max']
+      var scX = w / (mapMax[0] - mapMin[0])
+      var scY = h / (mapMax[1] - mapMin[1])
+
+      ctx.lineWidth = 1
+      ctx.strokeStyle = '#555'
+
+      ctx.beginPath()
+      for (var y = mapMin[1]; y <= mapMax[1]; y += map_info['grid_steps'][1]) {
+        var yy = Math.floor((y-mapMin[1])*scY)+0.5
+        ctx.moveTo(0, yy)
+        ctx.lineTo(w, yy)
+      }
+      for (var x = mapMin[0]; x <= mapMax[0]; x += map_info['grid_steps'][0]) {
+        var xx = Math.floor((x-mapMin[0])*scX)+0.5
+        ctx.moveTo(xx, 0)
+        ctx.lineTo(xx, h)
+      }
+      ctx.stroke()
+
+      ctx.fillStyle = '#111'
+      ctx.font = 'normal 9pt sans-serif'
+
+      ctx.textBaseline = 'middle'
+      ctx.textAlign = 'left'
+      for (var y = mapMin[1]+map_info['grid_steps'][1]*0.5, n=0; y <= mapMax[1] && n < 26; y += map_info['grid_steps'][1], ++n) {
+        var yy = Math.floor((y-mapMin[1])*scY)+0.5
+        ctx.fillText(String.fromCharCode(65+n), 3, yy)
+      }
+
+      ctx.textBaseline = 'top'
+      ctx.textAlign = 'center'
+      for (var x = mapMin[0]+map_info['grid_steps'][0]*0.5, n=1; x <= mapMax[0]; x += map_info['grid_steps'][0], ++n) {
+        var xx = Math.floor((x-mapMin[0])*scX)+0.5
+        ctx.fillText(n, xx, 3)
+      }
+    }
+
+
+    function drawMapGridScaled(canvas) {
+      if (!map_info || !('map_min' in map_info))
+        return
+
+      var ctx = canvas.getContext('2d')
+      var w = canvas.width
+      var h = canvas.height
+      var mapMin = map_info['map_min']
+      var mapMax = map_info['map_max']
+      var gridSteps = map_info['grid_steps']
+      var scX = w * map_scale / (mapMax[0] - mapMin[0])
+      var scY = h * map_scale / (mapMax[1] - mapMin[1])
+
+      var firstVisCellX = Math.floor((-map_pan[0] / scX) / gridSteps[0])
+      var firstVisCellY = Math.floor((-map_pan[1] / scY) / gridSteps[1])
+      var xVis0 = mapMin[0] + firstVisCellX * gridSteps[0]
+      var yVis0 = mapMin[1] + firstVisCellY * gridSteps[1]
+      var xVis1 = mapMin[0] + Math.ceil((w-map_pan[0]) / scX / gridSteps[0]) * gridSteps[0]
+      var yVis1 = mapMin[1] + Math.ceil((h-map_pan[1]) / scY / gridSteps[1]) * gridSteps[1]
+
+      ctx.lineWidth = 1
+      ctx.strokeStyle = '#555'
+
+      ctx.beginPath()
+      for (var y = yVis0; y <= yVis1; y += gridSteps[1]) {
+        var yy = Math.floor((y-mapMin[1])*scY+map_pan[1])+0.5
+        ctx.moveTo(0, yy)
+        ctx.lineTo(w, yy)
+      }
+      for (var x = xVis0; x <= xVis1; x += gridSteps[0]) {
+        var xx = Math.floor((x-mapMin[0])*scX+map_pan[0])+0.5
+        ctx.moveTo(xx, 0)
+        ctx.lineTo(xx, h)
+      }
+      ctx.stroke()
+
+      ctx.fillStyle = '#111'
+      ctx.font = 'normal 9pt sans-serif'
+
+      ctx.textBaseline = 'middle'
+      ctx.textAlign = 'left'
+      for (var y = yVis0+map_info['grid_steps'][1]*0.5, n=firstVisCellY; y <= yVis1 && n < 26; y += gridSteps[1], ++n) {
+        var yy = Math.floor((y-mapMin[1])*scY+map_pan[1])+0.5
+        ctx.fillText(String.fromCharCode(65+n), 3, yy)
+      }
+
+      ctx.textBaseline = 'top'
+      ctx.textAlign = 'center'
+      for (var x = xVis0+map_info['grid_steps'][0]*0.5, n=firstVisCellX; x <= xVis1; x += gridSteps[0], ++n) {
+        var xx = Math.floor((x-mapMin[0])*scX+map_pan[0])+0.5
+        ctx.fillText(n+1, xx, 3)
+      }
+    }
+
+
+    function draw_airfield(canvas, ctx, item) {
+      var sx = canvas.width *item['sx']*map_scale + map_pan[0]
+      var sy = canvas.height*item['sy']*map_scale + map_pan[1]
+      var ex = canvas.width *item['ex']*map_scale + map_pan[0]
+      var ey = canvas.height*item['ey']*map_scale + map_pan[1]
+      
+      ctx.lineWidth = 3.0*Math.sqrt(map_scale)
+      ctx.strokeStyle = calcMapObjectColor(item)
+      ctx.beginPath()
+      ctx.moveTo(sx, sy)
+      ctx.lineTo(ex, ey)
+      ctx.stroke()
+    }
+
+
+    function draw_player(canvas, ctx, item, dt) {
+      var x = item['x']
+      var y = item['y']
+      var dir = $V([item['dx'], item['dy']])
+
+      if (lastPlayerPos) {
+        var x0 = lastPlayerPos['x']
+        var y0 = lastPlayerPos['y']
+        if (Math.abs(x0 - x) < 0.01)
+          x = approach(x0, x, dt, 0.4)
+        if (Math.abs(y0 - y) < 0.01)
+          y = approach(y0, y, dt, 0.4)
+
+        var dir0 = $V(lastPlayerPos['dir'])
+        var angle = dir.signedAngle2DFrom(dir0)
+
+        if (angle > -Math.PI*0.25 && angle < Math.PI*0.25) {
+          angle = approach(0.0, angle, dt, 0.4)
+          dir = dir0.rotate(angle, [0,0])
+        }
+      }
+
+      ctx.fillStyle = '#fff';
+      ctx.lineWidth = 2;
+      ctx.strokeStyle = '#333';
+      ctx.beginPath()
+      var w = 7.0
+      var l = 25.0
+      var dx = dir.at(0)
+      var dy = dir.at(1)
+      var sx = x*canvas.width*map_scale + map_pan[0]
+      var sy = y*canvas.height*map_scale + map_pan[1]
+
+      // center arrow
+      sx -= l*0.5*dx
+      sy -= l*0.5*dy
+
+      ctx.moveTo(sx-w*dy, sy+w*dx)
+      ctx.lineTo(sx+w*dy, sy-w*dx)
+      ctx.lineTo(sx+l*dx, sy+l*dy)
+      //console.log('dx = ' + dx + ', dy = ' + dy)
+      ctx.closePath()
+      ctx.fill()
+      ctx.stroke()
+
+      return {'x': x, 'y': y, 'dir': dir.elements}
+    }
+
+
+    function draw_map_object(canvas, ctx, item, rotate) {
+      var x = canvas.width*item['x']
+      var y = canvas.height*item['y']
+
+      ctx.fillStyle = calcMapObjectColor(item)
+      ctx.lineWidth = 1;
+      ctx.strokeStyle = '#000';
+
+      ctx.font = 'bold 18pt Icons'
+      ctx.textBaseline = 'middle'
+      ctx.textAlign = 'center'
+
+      var s = null
+      if (item['icon'] == 'Airdefence')
+        s = '4'
+      else if (item['icon'] == 'Structure')
+        s = '5'        
+      else if (item['icon'] == 'waypoint')
+        s = '6'
+      else if (item['icon'] == 'capture_zone')
+        s = '7'        
+      else if (item['icon'] == 'bombing_point')
+        s = '8'
+      else if (item['icon'] == 'defending_point')
+        s = '9'
+      else if (item['icon'] == 'respawn_base_tank')
+        s = '0'
+      else if (item['icon'] == 'respawn_base_fighter')
+        s = '.'
+      else if (item['icon'] == 'respawn_base_bomber')
+        s = ':'
+      else
+        s = item['icon'][0]
+
+      var sx = x*map_scale + map_pan[0]
+      var sy = y*map_scale + map_pan[1]
+      if (rotate)
+      {
+        ctx.save()
+        ctx.translate(sx, sy)
+        var heading = Math.atan2(item.dx, -item.dy)
+        ctx.rotate(heading)
+        ctx.translate(-sx, -sy)
+        ctx.fillText(s, sx, sy)
+        ctx.strokeText(s, sx, sy)
+        ctx.restore()
+      }
+      else
+      {
+        ctx.fillText(s, sx, sy)
+        ctx.strokeText(s, sx, sy)      
+      }
+    }
+
+    function redraw_map(dt) {
+      var canvas = document.getElementById('map-canvas')
+      var ctx = canvas.getContext('2d')
+      //ctx.fillRect(0, 0, canvas.width, canvas.height)
+      ctx.clearRect(0, 0, canvas.width, canvas.height)
+
+      ctx.setTransform(map_scale, 0, 0, map_scale, map_pan[0], map_pan[1])
+      if (map_image.complete && map_image.naturalWidth) {
+        ctx.drawImage(map_image, 0, 0, canvas.width, canvas.height)
+      }
+
+      ctx.setTransform(1, 0, 0, 1, 0, 0)
+      drawMapGridScaled(canvas)
+
+      var player = null
+      if ($.isArray(map_objects)) {
+        for (var i=0; i<map_objects.length; ++i) {
+          var item = map_objects[i];
+          if (item['type'] == 'airfield') {
+            draw_airfield(canvas, ctx, item)
+          } else {
+            if (item['icon'] == 'Player') {
+              player = item;
+            } else {
+              var rotate = (item['type'] == 'respawn_base_fighter') || (item['type'] == 'respawn_base_bomber')
+              draw_map_object(canvas, ctx, item, rotate)
+            }
+          }
+        }
+      }
+
+      if (player) {  
+        lastPlayerPos = draw_player(canvas, ctx, player, dt)
+      } else {
+        lastPlayerPos = null
+      }
+    }
+
+
+    function update_timers() {
+      var t = new Date().getTime()
+      var dt = 0.0
+      if (lastT) {
+        dt = (t-lastT)*0.001
+        blinkNormalT += dt
+        blinkHeavyT += dt
+        var periodNormal = 2.0
+        var periodHeavy = 1.2
+        if (blinkNormalT > periodNormal)
+          blinkNormalT -= periodNormal*Math.floor(blinkNormalT / periodNormal)
+        if (blinkHeavyT > periodHeavy)
+          blinkHeavyT -= periodHeavy*Math.floor(blinkHeavyT / periodHeavy)
+        blinkNormalVal = Math.exp(-Math.pow(5*blinkNormalT-2, 4))
+        blinkHeavyVal = Math.exp(-Math.pow(5*blinkHeavyT-2, 4))
+      }
+      lastT = t
+      return dt
+    }
+
+
+    function update_object_positions(objects) {
+      map_objects = objects
+      var dt = update_timers()
+      redraw_map(dt) 
+    }
+
+
+    function update_map_info(info) {
+      var prevMapGen = (map_info && ('map_generation' in map_info)) ? map_info['map_generation'] : -1
+      var newMapGen = (info && ('map_generation' in info)) ? info['map_generation'] : -1
+      
+      map_info = info
+
+      if (prevMapGen != newMapGen) {
+        map_image.src = '/map.img?gen='+newMapGen
+        map_scale = 1.0
+        map_pan = [0.0, 0.0]
+        redraw_map(0.0)
+      }
+    }
+
+
+    function add_to_chat(root, rec) {
+      var el = $(document.createElement('div'))
+      el.addClass('chat-line')
+      if (rec.sender) {
+        var s = ''
+        if (rec['mode'])
+          s += '['+rec['mode']+'] '
+        s += rec.sender + ': ' + rec.msg
+        el.text(s)
+        if (rec['enemy'])  
+          el.addClass('msg-type-enemy')
+      } else {
+        el.text(rec.msg)
+        el.addClass('msg-type-system')
+      }
+      root.append(el)
+    }
+
+
+    function update_game_chat(data) {
+      if (!data || !data.length)
+        return
+
+      var root = $('#game-chat-root #textlines')
+      for (var i=0; i<data.length; ++i) {
+        add_to_chat(root, data[i])
+      }
+      root.get(0).scrollTop = root.get(0).scrollHeight
+
+      lastChatRecId = data[data.length-1].id
+    }
+
+    function update_hud_msg(data) {
+      if (!data)
+        return
+
+      var msgEvt = data['events']
+      var msgDmg = data['damage']
+      var types = [[msgEvt, '#hud-evt-msg-root #textlines'], [msgDmg, '#hud-dmg-msg-root #textlines']]
+      for (var tp=0; tp<types.length; ++tp) {
+        var msg = types[tp][0]
+        var root = $(types[tp][1])
+        for (var i=0; i<msg.length; ++i) {
+          add_to_chat(root, msg[i])
+        }
+        root.get(0).scrollTop = root.get(0).scrollHeight
+      }
+
+      if (msgEvt.length)
+        lastEvtMsgId = msgEvt[msgEvt.length-1].id
+      if (msgDmg.length)
+        lastDmgMsgId = msgDmg[msgDmg.length-1].id
+    }
+
+
+    function update_indicators(data) {
+      var isValid = data && data['valid']
+      var roots = [$('#indicators0'), $('li')]
+      for (var i=0; i<2; ++i) {
+        if (isValid) { roots[i].show() } else { roots[i].hide() }
+      }
+      if (!isValid)
+        return
+        
+      var lists = [$('#indicators0 li'), $('#indicators1 li')]
+      for (var iList=0; iList<2; ++iList) {
+        var list = lists[iList]
+        for (var iItem=0, nItems=list.length; iItem < nItems; ++iItem) {
+          var elem = $(list.get(iItem))
+          var id = elem.get(0).id.slice(4)
+          if (id in data) {
+            elem.show()
+            elem.text(id+'='+data[id])
+          } else {
+            elem.hide()
+          }
+        }
+      }
+    }
+    
+    function update_state(data) {
+      var isValid = data && data['valid']
+      var roots = [$('#state0'), $('li')]
+      for (var i=0; i<2; ++i) {
+        if (isValid) { roots[i].show() } else { roots[i].hide() }
+      }
+      if (!isValid)
+        return
+        
+      //alert('isValid')
+        
+      var lists = [$('#state0 li'), $('#state1 li')]
+      for (var iList=0; iList<2; ++iList) {
+        var list = lists[iList]
+        for (var iItem=0, nItems=list.length; iItem < nItems; ++iItem) {
+          var elem = $(list.get(iItem))
+          var id = elem.get(0).id.slice(4)
+          //alert('parameter id "' + id + '"')
+          if (id in data) {
+            elem.show()
+            elem.text(id+'='+data[id])
+          } else {
+            //alert('parameter id "' + id + '" not found')
+            elem.hide()
+          }
+        }
+      }
+    }
+
+    function updateSlow() {
+      $.ajax({type:'GET', url:'/mission.json',  success:format_mission_data })
+      $.ajax({type:'GET', url:'/map_obj.json',  success:update_object_positions })
+      $.ajax({type:'GET', url:'/map_info.json', success:update_map_info })
+      $.ajax({type:'GET', url:'/gamechat?lastId='+lastChatRecId, success:update_game_chat })
+      $.ajax({type:'GET', url:'/hudmsg', data:{'lastEvt':lastEvtMsgId, 'lastDmg':lastDmgMsgId}, success:update_hud_msg })
+      $.ajax({type:'GET', url:'/indicators',    success:update_indicators })
+      $.ajax({type:'GET', url:'/state',         success:update_state,
+         error: function(jqXHR, textStatus, errorThrown) {
+          alert(textStatus + '\n' + errorThrown)
+        }
+      })
+    }
+
+
+    function updateFast() {
+      var dt = update_timers()
+      if (!isDraggingMap && !isTransformingMap)
+        redraw_map(dt)
+    }
+
+
+    function normalizeText(text) {
+      return text.replace('<', '&lt;').replace('>', '&gt;');
+    }
+
+
+    function localize_static() {
+      var elems = $('.loc')
+      var len = elems.length
+      for (var i=0; i<len; ++i) {
+        var e = $(elems[i])
+        var key = e.text()
+        if (key in loc_tbl)
+          e.text(loc_tbl[key])
+      }
+    }
+
+
+    function page_log(data) {
+      var el = $('<div></div>')
+      el.text(data)
+      $(document.body).append(el)
+    }
+
+    
+    function local_debug_init() {
+      var dbg_chat = [
+        'Never gonna give you up', 'Never gonna let you down', 'Never gonna run around and desert you',
+        'Never gonna make you cry', 'Never gonna say goodbye', 'Never gonna tell a lie and hurt you'
+      ]
+      var dbg_mode = ['Team', 'All', 'Squad', '', 'Private', '', '']
+      var root = $('#game-chat-root #textlines')
+      for (var n=0; n<5; ++n) {  
+        for (var i=0; i<dbg_chat.length; ++i) {
+          add_to_chat(root, {'id':i+1, 'msg': dbg_chat[i], 'sender': 'Rick', 'enemy': false, 'mode': dbg_mode[i]})
+        }
+      }
+      root.get(0).scrollTop = root.get(0).scrollHeight
+    }
+
+    pos_save_elem_ids = {
+      '#map-root': ['left', 'top'],
+      '#map-canvas': ['width', 'height'],
+      '#mission-objectives': ['left', 'top', 'width'],
+      '#game-chat-root': ['width', 'height', 'left', 'top'],
+      '#hud-evt-msg-root': ['width', 'height', 'left', 'top'],
+      '#hud-dmg-msg-root': ['width', 'height', 'left', 'top'],
+      '#indicators-root': ['left', 'top', 'width', 'height'],
+      '#state-root': ['left', 'top', 'width', 'height']
+    }
+
+    function get_pos_prop(elem, field) {
+      if (field == 'width' || field == 'height')
+        return elem[field]()
+      else
+        return elem.offset()[field]
+    }
+
+    function set_pos_prop(elem, field, val) {
+      if (field == 'width' || field == 'height')
+        return elem[field](val)
+      else {
+        var offs = elem.offset()
+        offs[field] = val
+        elem.offset(offs)
+      }
+    }
+
+    function load_positions() {
+      for (var id in pos_save_elem_ids) {
+        var cookieVal = Cookies.get(id)
+        if (cookieVal) {
+          var elem = $(id)
+          var values = cookieVal.split('|')
+          for (var vi in values) {
+            var kv = values[vi].split(':')
+            if (kv.length==2) {
+              set_pos_prop(elem, kv[0], kv[1])
+            }
+          }
+        }
+      }
+
+      var canvas = $('#map-canvas')
+      canvas.get(0).width  = canvas.width()
+      canvas.get(0).height = canvas.height()
+    }
+
+
+    function save_positions() {
+      for (var id in pos_save_elem_ids) {
+        var elem = $(id)
+        var fields = pos_save_elem_ids[id]
+        var cookieVal = ''
+        for (var idx in fields) {
+          if (cookieVal) cookieVal+='|';
+          cookieVal += fields[idx]+':'+get_pos_prop(elem, fields[idx])
+        }
+        if (cookieVal)
+          Cookies.set(id, cookieVal, {expires:cookieLifeTime})
+      }
+    }
+
+
+    function save_indicators_order(event, ui) {
+      var lists = [$('#indicators0 li'), $('#indicators1 li')]
+      var order = [[],[]]
+      for (var iList=0; iList<2; ++iList) {
+        for (var iItem=0, nItems=lists[iList].length; iItem<nItems; ++iItem) {
+          order[iList].push(lists[iList][iItem].id.slice(4))
+        }
+      }
+      var val = order[0].join('|') + ':' + order[1].join('|')
+      Cookies.set('indicators', val, {expires:cookieLifeTime})
+    }
+    
+    function save_state_order(event, ui) {
+      var lists = [$('#state0 li'), $('#state1 li')]
+      var order = [[],[]]
+      for (var iList=0; iList<2; ++iList) {
+        for (var iItem=0, nItems=lists[iList].length; iItem<nItems; ++iItem) {
+          order[iList].push(lists[iList][iItem].id.slice(4))
+        }
+      }
+      var val = order[0].join('|') + ':' + order[1].join('|')
+      Cookies.set('state', val, {expires:cookieLifeTime})
+    }
+    
+    function fill_indicators_list() {
+      var addElem = function(root, id) {
+        var elem = $('<li id="ind-'+id+'" style="display:none;"></li>')
+        //var elem = $('<li id="ind-'+id+'">'+id+'</li>')
+        root.append(elem)
+      }
+
+      var fullIndIdList = indicator_columns[0].concat(indicator_columns[1])
+
+      var savedVal = Cookies.get('indicators')
+      var order = [[], []]
+      if (savedVal) {
+        var s = savedVal.split(':')
+        order = [s[0].split('|'), s[1].split('|')]
+        for (var iList=0; iList<2; ++iList) {
+          var root = $('#indicators'+iList)
+          for (var iItem=0, nItems=s[iList].length; iItem<nItems; ++iItem) {
+            var id = order[iList][iItem]
+            if (fullIndIdList.indexOf(id) >= 0) {
+              addElem(root, id)
+            }
+          }
+        }          
+      }
+
+      var savedIdsListFull = order[0].concat(order[1])
+
+      for (var iList=0; iList<2; ++iList) {
+        var list = indicator_columns[iList]
+        var root = $('#indicators'+iList)
+        for (var iItem=0; iItem<list.length; ++iItem) {
+          if (savedIdsListFull.indexOf(list[iItem]) < 0) {
+            addElem(root, list[iItem])
+          }
+        }
+      }
+    }
+    
+    function fill_state_list() {
+     var addElem = function(root, id) {
+        var elem = $('<li id="stt-'+id+'" style="display:none;"></li>')
+        //var elem = $('<li id="stt-'+id+'">'+id+'</li>')
+        root.append(elem)
+      }
+
+      var fullStateIdList = state_columns[0].concat(state_columns[1])
+
+      var savedVal = Cookies.get('state')
+      var order = [[], []]
+      if (savedVal) {
+        var s = savedVal.split(':')
+        order = [s[0].split('|'), s[1].split('|')]
+        for (var iList=0; iList<2; ++iList) {
+          var root = $('#state'+iList)
+          for (var iItem=0, nItems=s[iList].length; iItem<nItems; ++iItem) {
+            var id = order[iList][iItem]
+            if (fullStateIdList.indexOf(id) >= 0) {
+              addElem(root, id)
+            }
+          }
+        }          
+      }
+
+      var savedStateListFull = order[0].concat(order[1])
+
+      for (var iList=0; iList<2; ++iList) {
+        var list = state_columns[iList]
+        var root = $('#state'+iList)
+        for (var iItem=0; iItem<list.length; ++iItem) {
+          if (savedStateListFull.indexOf(list[iItem]) < 0) {
+            addElem(root, list[iItem])
+          }
+        }
+      }
+    }
+
+    function init() {
+      localize_static()
+
+      var canvasEl = document.getElementById('map-canvas')
+      
+      addWheelHandler(canvasEl, mapOnWheel)
+      canvasEl.onselectstart = function() {return false} //== Chrome fix
+      //$("#map-canvas").mousedown(mapOnMouseDown)
+
+      //Hammer.plugins.showTouches();
+      //Hammer.plugins.fakeMultitouch();
+
+      var ht = Hammer(canvasEl, hammer_opt)
+      var events = ['drag', 'dragstart', 'dragend', 'transform', 'transformstart', 'transformend']
+      for (var ei in events) {
+        ht.on(events[ei], on_touch_event)
+      }
+
+      load_positions()
+      fill_indicators_list()
+      fill_state_list()
+
+      var interactive = ['#game-chat-root', '#hud-evt-msg-root', '#hud-dmg-msg-root']
+      for (var i in interactive) {
+        var el = $(interactive[i])
+        el.draggable({handle:'#draghandle', stop:save_positions}).resizable({stop:save_positions})
+      }
+      $('#mission-objectives').draggable({handle:'#draghandle', stop:save_positions}).resizable({handles: 'e', stop:save_positions})
+      $('#indicators-root').draggable({handle:'#draghandle', stop:save_positions}).resizable({stop:save_positions})
+      $('#state-root').draggable({handle:'#draghandle', stop:save_positions}).resizable({stop:save_positions})
+
+      $('#map-root').draggable({handle:'#draghandle', stop: save_positions})
+      $('#map-canvas').resizable({
+        aspectRatio: 1,
+        minWidth: 256,
+        minHeight: 256,
+        stop: function(event, ui) {
+          var canvas = ui.element.find('canvas').get(0)
+          var factor = ui.size.width / canvas.width
+          canvas.width = ui.size.width
+          canvas.height = ui.size.height
+          map_pan[0] *= factor
+          map_pan[1] *= factor
+          redraw_map()
+          save_positions()
+        }
+      })
+
+      $("#indicators0, #indicators1").sortable(
+        {connectWith: ".connectedIndicators", stop:save_indicators_order}
+      ).disableSelection()
+      
+      $("#state0, #state1").sortable(
+        {connectWith: ".connectedState", stop:save_state_order}
+      ).disableSelection()      
+
+      if (document.location.protocol != 'file:') {
+        setInterval(updateSlow, 500);
+        setInterval(updateFast, 25);
+      } else {
+        local_debug_init()
+      }
+    }
+
+    window.onload = init;
+
+  </script>
+</head>
+
+<body style="cursor: auto;">
+  <div id="log_output"></div>
+
+  <div id="map-root" class="ui-draggable" style="left: 10px; top: 4px;">
+    <div class="caption"><div id="draghandle"></div></div>
+    <div class="ui-wrapper" style="overflow: hidden; position: relative; width: 963px; height: 963px; top: 0px; left: 0px; margin: 0px;"><canvas id="map-canvas" width="963" height="963" class="ui-resizable" style="user-select: none; -webkit-user-drag: none; -webkit-tap-highlight-color: rgba(0, 0, 0, 0); touch-action: none; margin: 0px; resize: none; position: static; zoom: 1; display: block; height: 963px; width: 963px;">Please use a browser with canvas support</canvas><div class="ui-resizable-handle ui-resizable-e" style="z-index: 90;"></div><div class="ui-resizable-handle ui-resizable-s" style="z-index: 90;"></div><div class="ui-resizable-handle ui-resizable-se ui-icon ui-icon-gripsmall-diagonal-se" style="z-index: 90;"></div></div>
+  </div>
+
+  <div id="mission-objectives" class="ui-draggable ui-resizable" style="left: 983px; top: 7px;">
+    <div class="caption"><div id="draghandle"></div></div>
+
+    <h3 class="loc">PRIMARY GOALS</h3>
+    <div id="objectives-primary"><div class="objective" style="display: none;"><div id="holder" class="in_progress"><div id="text">Capture and maintain superiority over the points ╸,╹,╺</div></div></div></div>
+
+    <h3 class="loc">SECONDARY GOALS</h3>
+    <div id="objectives-secondary"></div>
+  <div class="ui-resizable-handle ui-resizable-e" style="z-index: 90;"></div></div>
+
+  <div id="game-chat-root" class="ui-draggable ui-resizable" style="left: 1628px; top: 15px;">
+    <div class="caption"><div id="draghandle"></div></div>
+    <div id="textlines"></div>
+  <div class="ui-resizable-handle ui-resizable-e" style="z-index: 90;"></div><div class="ui-resizable-handle ui-resizable-s" style="z-index: 90;"></div><div class="ui-resizable-handle ui-resizable-se ui-icon ui-icon-gripsmall-diagonal-se" style="z-index: 90;"></div></div>
+
+  <div id="hud-evt-msg-root" class="ui-draggable ui-resizable" style="left: 1585px; top: 243px;">
+    <div class="caption"><div id="draghandle"></div></div>
+    <div id="textlines"></div>
+  <div class="ui-resizable-handle ui-resizable-e" style="z-index: 90;"></div><div class="ui-resizable-handle ui-resizable-s" style="z-index: 90;"></div><div class="ui-resizable-handle ui-resizable-se ui-icon ui-icon-gripsmall-diagonal-se" style="z-index: 90;"></div></div>
+
+  <div id="hud-dmg-msg-root" class="ui-draggable ui-resizable" style="left: 1205px; top: 160px;">
+    <div class="caption"><div id="draghandle"></div></div>
+    <div id="textlines"><div class="chat-line msg-type-system">⋇pestoni88 (Porter) destroyed -opn- Mr_nicekiller (Type 1934A)</div><div class="chat-line msg-type-system">⋇pestoni88 (Porter) has achieved "Ship Rescuer"</div><div class="chat-line msg-type-system">⋇pestoni88 (Porter) has achieved "Avenger"</div><div class="chat-line msg-type-system">bilbosfrodos (Hunt class) destroyed PrinceOfCats (Moskva)</div><div class="chat-line msg-type-system">=WTCAF= KylinMBT (Omaha) set afire Rotbarsch77 (Type 1939)</div><div class="chat-line msg-type-system">-HeroZ- jannamer (Shimakaze) set afire justoghost (Isuzu)</div><div class="chat-line msg-type-system">=WTCAF= KylinMBT (Omaha) destroyed Rotbarsch77 (Type 1939)</div><div class="chat-line msg-type-system">justoghost (Isuzu) destroyed -HeroZ- jannamer (Shimakaze)</div><div class="chat-line msg-type-system">justoghost (Isuzu) has achieved "Ship Rescuer"</div><div class="chat-line msg-type-system">-HeroZ- jannamer has disconnected from the game.</div><div class="chat-line msg-type-system">jannamertd! kd?NET_PLAYER_DISCONNECT_FROM_GAME</div><div class="chat-line msg-type-system">-MOD- _82AB_GruberRd has disconnected from the game.</div><div class="chat-line msg-type-system">_82AB_GruberRdtd! kd?NET_PLAYER_DISCONNECT_FROM_GAME</div><div class="chat-line msg-type-system">⋇pestoni88 (Porter) set afire _j8pbeg8h3 (Type 1934A)</div><div class="chat-line msg-type-system">=WTCAF= KylinMBT (Omaha) set afire Cargo ship</div><div class="chat-line msg-type-system">=WTCAF= KylinMBT (Omaha) destroyed Cargo ship</div><div class="chat-line msg-type-system">bilbosfrodos (Hunt class) set afire =CZvzv= sysel_cz (Lübeck F224)</div><div class="chat-line msg-type-system">=CZvzv= sysel_cz (Lübeck F224) damaged -opn- Mr_nicekiller (Bf 110 G)</div><div class="chat-line msg-type-system">=CZvzv= sysel_cz (Lübeck F224) shot down -opn- Mr_nicekiller (Bf 110 G)</div><div class="chat-line msg-type-system">=CZvzv= sysel_cz (Lübeck F224) set afire -opn- Mr_nicekiller (Bf 110 G)</div><div class="chat-line msg-type-system">bilbosfrodos (Hunt class) destroyed =CZvzv= sysel_cz (Lübeck F224)</div><div class="chat-line msg-type-system">Leonin (Somers) set afire Naoki (Groza)</div><div class="chat-line msg-type-system">=120NL= ⋇royjansen1 (Fletcher) damaged PrinceOfCats (IL-4)</div><div class="chat-line msg-type-system">Leonin (Somers) destroyed Naoki (Groza)</div><div class="chat-line msg-type-system">Torpedo drowned</div><div class="chat-line msg-type-system">=120NL= ⋇royjansen1 (Fletcher) shot down PrinceOfCats (IL-4)</div><div class="chat-line msg-type-system">⋇pestoni88 (Porter) set afire bilbosfrodos (Hunt class)</div><div class="chat-line msg-type-system">⋇pestoni88 (Porter) set afire bilbosfrodos (Hunt class)</div><div class="chat-line msg-type-system">⋇pestoni88 (Porter) destroyed bilbosfrodos (Hunt class)</div><div class="chat-line msg-type-system">⋇pestoni88 (Porter) has achieved "Professional: x5"</div><div class="chat-line msg-type-system">⋇pestoni88 (Porter) set afire =prpr= Sierra193 (Hawkins)</div><div class="chat-line msg-type-system">justoghost (Isuzu) destroyed Cargo ship</div><div class="chat-line msg-type-system">Boris__Blade (Pr. 123K "Komsomolets") shot down =CZvzv= sysel_cz (Ju&nbsp;87 D)</div><div class="chat-line msg-type-system">=CZvzv= sysel_cz (Ju&nbsp;87 D) destroyed Boris__Blade (Pr. 123K "Komsomolets")</div><div class="chat-line msg-type-system">=CZvzv= sysel_cz (Ju&nbsp;87 D) has achieved "Eye for Eye"</div><div class="chat-line msg-type-system">Leonin (Somers) set afire =prpr= Sierra193 (Hawkins)</div><div class="chat-line msg-type-system">justoghost (Isuzu) destroyed Cargo ship</div><div class="chat-line msg-type-system">-HeroZ- jannamer (Shimakaze) destroyed PrinceOfCats (Pr. 7U)</div><div class="chat-line msg-type-system">-HeroZ- jannamer (Shimakaze) destroyed =CZvzv= sysel_cz (Type 1936A)</div><div class="chat-line msg-type-system">=CZvzv= sysel_cz has disconnected from the game.</div><div class="chat-line msg-type-system">sysel_cztd! kd?NET_PLAYER_DISCONNECT_FROM_GAME</div><div class="chat-line msg-type-system">bilbosfrodos (Firefly F) set afire ⋇pestoni88 (Porter)</div><div class="chat-line msg-type-system">=WTCAF= KylinMBT (Omaha) set afire justoghost (Isuzu)</div><div class="chat-line msg-type-system">=WTCAF= KylinMBT (Omaha) destroyed justoghost (Isuzu)</div><div class="chat-line msg-type-system">Leonin (Somers) set afire =prpr= Sierra193 (Hawkins)</div><div class="chat-line msg-type-system">Darren (Groza) set afire Boris__Blade (Pe-2)</div><div class="chat-line msg-type-system">⋇pestoni88 (Porter) damaged Boris__Blade (Pe-2)</div><div class="chat-line msg-type-system">⋇pestoni88 (Porter) shot down Boris__Blade (Pe-2)</div><div class="chat-line msg-type-system">⋇pestoni88 (Porter) has achieved "Professional: x6"</div><div class="chat-line msg-type-system">Leonin (Somers) destroyed =prpr= Sierra193 (Hawkins)</div><div class="chat-line msg-type-system">⋇pestoni88 (Porter) destroyed Luftwaffen_Affe (S-38)</div><div class="chat-line msg-type-system">⋇pestoni88 (Porter) has achieved "Ship Rescuer"</div><div class="chat-line msg-type-system">⋇pestoni88 (Porter) has achieved "Professional: x7"</div><div class="chat-line msg-type-system">⋇pestoni88 (Porter) has achieved "Double strike!"</div><div class="chat-line msg-type-system">_j8pbeg8h3 (Type 1934A) set afire axool (Tribal)</div><div class="chat-line msg-type-system">⋇pestoni88 (Porter) destroyed _j8pbeg8h3 (Type 1934A)</div><div class="chat-line msg-type-system">⋇pestoni88 (Porter) has achieved "Professional: x8"</div><div class="chat-line msg-type-system">⋇pestoni88 (Porter) has achieved "Shadow strike streak: x3!"</div><div class="chat-line msg-type-system">⋇pestoni88 (Porter) has achieved "Triple strike!"</div><div class="chat-line msg-type-system">=WTCAF= KylinMBT (Omaha) set afire Cargo ship</div><div class="chat-line msg-type-system">_j8pbeg8h3 has disconnected from the game.</div><div class="chat-line msg-type-system">_j8pbeg8h3td! kd?NET_PLAYER_DISCONNECT_FROM_GAME</div><div class="chat-line msg-type-system">Rotbarsch77 has disconnected from the game.</div><div class="chat-line msg-type-system">Rotbarsch77td! kd?NET_PLAYER_DISCONNECT_FROM_GAME</div><div class="chat-line msg-type-system">=WTCAF= KylinMBT (Omaha) set afire axool (Tribal)</div><div class="chat-line msg-type-system">=WTCAF= KylinMBT (Omaha) destroyed axool (Tribal)</div><div class="chat-line msg-type-system">=WTCAF= KylinMBT (Omaha) destroyed Cargo ship</div><div class="chat-line msg-type-system">Leonin (Somers) set afire bilbosfrodos (Firefly F)</div><div class="chat-line msg-type-system">=120NL= ⋇royjansen1 (Fletcher) damaged fgsdffd (Bf 110 G)</div><div class="chat-line msg-type-system">Leonin (Somers) shot down bilbosfrodos (Firefly F)</div><div class="chat-line msg-type-system">Luftwaffen_Affe (Bf&nbsp;109&nbsp;F) damaged fgsdffd (Bf 110 G)</div><div class="chat-line msg-type-system">=120NL= ⋇royjansen1 (Fletcher) shot down fgsdffd (Bf 110 G)</div><div class="chat-line msg-type-system">=WTCAF= KylinMBT (Omaha) set afire Darren (Groza)</div><div class="chat-line msg-type-system">⋇pestoni88 (Porter) set afire Naoki (Frunze)</div><div class="chat-line msg-type-system">=WTCAF= KylinMBT (Omaha) destroyed Darren (Groza)</div><div class="chat-line msg-type-system">⋇pestoni88 (Porter) destroyed Naoki (Frunze)</div><div class="chat-line msg-type-system">bilbosfrodos has disconnected from the game.</div><div class="chat-line msg-type-system">bilbosfrodostd! kd?NET_PLAYER_DISCONNECT_FROM_GAME</div><div class="chat-line msg-type-system">justoghost (Isuzu) destroyed Cargo ship</div><div class="chat-line msg-type-system">=WTCAF= KylinMBT (Omaha) set afire PrinceOfCats (Pr. 7U)</div><div class="chat-line msg-type-system">⋇pestoni88 (Porter) set afire -opn- Mr_nicekiller (Type 1939)</div><div class="chat-line msg-type-system">fgsdffd (LS) set afire =120NL= ⋇royjansen1 (Fletcher)</div><div class="chat-line msg-type-system">Leonin (Somers) set afire =WTCAF= KylinMBT (Omaha)</div><div class="chat-line msg-type-system">⋇pestoni88 (Porter) destroyed -opn- Mr_nicekiller (Type 1939)</div><div class="chat-line msg-type-system">⋇pestoni88 (Porter) has achieved "Professional: x9"</div><div class="chat-line msg-type-system">⋇pestoni88 (Porter) destroyed Boris__Blade (Pr. 1204)</div><div class="chat-line msg-type-system">⋇pestoni88 (Porter) has achieved "Ship Rescuer"</div><div class="chat-line msg-type-system">⋇pestoni88 (Porter) has achieved "Professional: x10"</div><div class="chat-line msg-type-system">⋇pestoni88 (Porter) has achieved "Double strike!"</div><div class="chat-line msg-type-system">Leonin (Somers) destroyed =WTCAF= KylinMBT (Omaha)</div><div class="chat-line msg-type-system">Leonin (Somers) has achieved "Ship Rescuer"</div><div class="chat-line msg-type-system">Boris__Blade has disconnected from the game.</div><div class="chat-line msg-type-system">Boris__Bladetd! kd?NET_PLAYER_DISCONNECT_FROM_GAME</div><div class="chat-line msg-type-system">fgsdffd (LS) set afire =120NL= ⋇royjansen1 (Fletcher)</div><div class="chat-line msg-type-system">fgsdffd (LS) set afire =120NL= ⋇royjansen1 (Fletcher)</div><div class="chat-line msg-type-system">⋇pestoni88 (Porter) set afire =prpr= Sierra193 (Dido)</div><div class="chat-line msg-type-system">fgsdffd (LS) destroyed =120NL= ⋇royjansen1 (Fletcher)</div><div class="chat-line msg-type-system">fgsdffd (LS) has achieved "Ship Rescuer"</div><div class="chat-line msg-type-system">fgsdffd (LS) has achieved "Skill matters"</div><div class="chat-line msg-type-system">=prpr= Sierra193 has disconnected from the game.</div><div class="chat-line msg-type-system">Sierra193td! kd?NET_PLAYER_DISCONNECT_FROM_GAME</div><div class="chat-line msg-type-system">⋇pestoni88 (Porter) set afire =prpr= Sierra193 (Dido)</div><div class="chat-line msg-type-system">Luftwaffen_Affe (Bf&nbsp;109&nbsp;F) destroyed fgsdffd (LS)</div><div class="chat-line msg-type-system">=WTCAF= KylinMBT (Moffett) set afire ⋇pestoni88 (Porter)</div><div class="chat-line msg-type-system">Leonin (Somers) damaged =120NL= ⋇royjansen1 (BTD-1)</div><div class="chat-line msg-type-system">Leonin (Somers) shot down =120NL= ⋇royjansen1 (BTD-1)</div><div class="chat-line msg-type-system">=120NL= ⋇royjansen1 has disconnected from the game.</div><div class="chat-line msg-type-system">⋇royjansen1td! kd?NET_PLAYER_DISCONNECT_FROM_GAME</div><div class="chat-line msg-type-system">=WTCAF= KylinMBT (Moffett) set afire ⋇pestoni88 (Porter)</div><div class="chat-line msg-type-system">Leonin (Somers) destroyed =prpr= Sierra193 (Dido)</div><div class="chat-line msg-type-system">Leonin (Somers) has achieved "Professional: x5"</div><div class="chat-line msg-type-system">=WTCAF= KylinMBT (Moffett) set afire ⋇pestoni88 (Porter)</div><div class="chat-line msg-type-system">Luftwaffen_Affe (Bf&nbsp;109&nbsp;F) has crashed.</div><div class="chat-line msg-type-system">⋇pestoni88 (Porter) has crashed.</div><div class="chat-line msg-type-system">PrinceOfCats (Pr. 7U) set afire Naoki (Moskva)</div><div class="chat-line msg-type-system">Luftwaffen_Affe (Type 1924) has crashed.</div><div class="chat-line msg-type-system">-opn- Mr_nicekiller (SF40 Leichte) set afire Leonin (Somers)</div><div class="chat-line msg-type-system">Leonin (Somers) destroyed -opn- Mr_nicekiller (SF40 Leichte)</div><div class="chat-line msg-type-system">Leonin (Somers) has achieved "Ship Rescuer"</div><div class="chat-line msg-type-system">Leonin (Somers) has achieved "Professional: x6"</div><div class="chat-line msg-type-system">Luftwaffen_Affe has disconnected from the game.</div><div class="chat-line msg-type-system">Luftwaffen_Affetd! kd?NET_PLAYER_DISCONNECT_FROM_GAME</div><div class="chat-line msg-type-system">Naoki (Moskva) set afire axool (K class)</div><div class="chat-line msg-type-system">PrinceOfCats (Pr. 7U) destroyed Naoki (Moskva)</div><div class="chat-line msg-type-system">justoghost (Kako) has achieved "Assists streak: x3!"</div><div class="chat-line msg-type-system">=WTCAF= KylinMBT (Moffett) set afire Darren (Pr. 30)</div><div class="chat-line msg-type-system">=WTCAF= KylinMBT (Moffett) destroyed Darren (Pr. 30)</div><div class="chat-line msg-type-system">Leonin (Somers) set afire =WTCAF= KylinMBT (Moffett)</div><div class="chat-line msg-type-system">Leonin (Somers) destroyed =WTCAF= KylinMBT (Moffett)</div><div class="chat-line msg-type-system">Leonin (Somers) has achieved "Ship Rescuer"</div><div class="chat-line msg-type-system">Leonin (Somers) has achieved "Professional: x7"</div><div class="chat-line msg-type-system">Leonin (Somers) set afire Gerhardt (Frunze)</div><div class="chat-line msg-type-system">PrinceOfCats (Pr. 7U) destroyed Cargo ship</div><div class="chat-line msg-type-system">justoghost (Kako) has achieved "Assists streak: x4!"</div><div class="chat-line msg-type-system">=WTCAF= KylinMBT (Moffett) destroyed Leonin (Somers)</div><div class="chat-line msg-type-system">-opn- Mr_nicekiller has disconnected from the game.</div><div class="chat-line msg-type-system">Mr_nicekillertd! kd?NET_PLAYER_DISCONNECT_FROM_GAME</div><div class="chat-line msg-type-system">=WTCAF= KylinMBT has disconnected from the game.</div><div class="chat-line msg-type-system">KylinMBTtd! kd?NET_PLAYER_DISCONNECT_FROM_GAME</div><div class="chat-line msg-type-system">justoghost (Kako) set afire Emden</div><div class="chat-line msg-type-system">Karp (Groza) has crashed.</div><div class="chat-line msg-type-system">Type 1939 shot down Leonin (PBJ-1)</div><div class="chat-line msg-type-system">Leonin (PBJ-1) set afire Type 1939</div><div class="chat-line msg-type-system">⋇pestoni88 (Sumner) set afire Emden</div><div class="chat-line msg-type-system">justoghost (Kako) destroyed Emden</div><div class="chat-line msg-type-system">⋇pestoni88 (Sumner) has achieved "Assists streak: x3!"</div><div class="chat-line msg-type-system">PrinceOfCats (Pr. 7U) has achieved "Assists streak: x3!"</div><div class="chat-line msg-type-system">axool (K class) set afire Gerhardt (Frunze)</div><div class="chat-line msg-type-system">⋇pestoni88 (Sumner) has achieved "Terror of the Sea"</div><div class="chat-line msg-type-system">⋇pestoni88 (Sumner) has achieved "The Best Squad"</div><div class="chat-line msg-type-system">Rotbarsch77 (He&nbsp;111&nbsp;H) has achieved "The Best Squad"</div><div class="chat-line msg-type-system">-opn- Mr_nicekiller (SF40 Leichte) has achieved "Balancer"</div><div class="chat-line msg-type-system">justoghost (Kako) has achieved "Wingman"</div><div class="chat-line msg-type-system">justoghost (Kako) has achieved "Rogue wave"</div><div class="chat-line msg-type-system">justoghost (Kako) has achieved "On Hand"</div><div class="chat-line msg-type-system">AliEffing (Fairmile D) destroyed Aldrich (Brave Borderer)</div><div class="chat-line msg-type-system">AliEffing (Fairmile D) has delivered the first strike!</div><div class="chat-line msg-type-system">MARCOBAIMA05 (PC-451) set afire Hisashi (Pr.183)</div><div class="chat-line msg-type-system">MARCOBAIMA05 (PC-451) destroyed Hisashi (Pr.183)</div><div class="chat-line msg-type-system">Nikodim (LCS(L)(3)) set afire ⋇ItsPatrick__YT (Clemson)</div><div class="chat-line msg-type-system">⋇seanboerboom (Type 1934A) set afire MarcoAgrippa8 (Turbine)</div><div class="chat-line msg-type-system">furorteutonicus1 (Type 1934A) destroyed AliEffing (Fairmile D)</div><div class="chat-line msg-type-system">⋇dist19 (Battle) destroyed Nikodim (LCS(L)(3))</div><div class="chat-line msg-type-system">=Flipd= Thatoldmilk (Z20 Karl Galster) set afire AliEffing (Hunt class)</div><div class="chat-line msg-type-system">⋇seanboerboom (Type 1934A) set afire MarcoAgrippa8 (Turbine)</div><div class="chat-line msg-type-system">=Flipd= Thatoldmilk (Z20 Karl Galster) destroyed AliEffing (Hunt class)</div><div class="chat-line msg-type-system">PrinceOfCats (Pr. 7U) has achieved "Teamwork: x1"</div><div class="chat-line msg-type-system">AliEffing (Hunt class) set afire =Flipd= Thatoldmilk (Z20 Karl Galster)</div><div class="chat-line msg-type-system">-33GAT- roch2 (Clemson) set afire furorteutonicus1 (Type 1934A)</div><div class="chat-line msg-type-system">furorteutonicus1 (Type 1934A) set afire -33GAT- roch2 (Clemson)</div><div class="chat-line msg-type-system">⋇seanboerboom (Type 1934A) destroyed MarcoAgrippa8 (Turbine)</div><div class="chat-line msg-type-system">AliEffing (Hunt class) set afire =Flipd= Thatoldmilk (Z20 Karl Galster)</div><div class="chat-line msg-type-system">⋇ItsPatrick__YT has disconnected from the game.</div><div class="chat-line msg-type-system">⋇ItsPatrick__YTtd! kd?NET_PLAYER_DISCONNECT_FROM_GAME</div><div class="chat-line msg-type-system">=Flipd= Thatoldmilk (Z20 Karl Galster) set afire AliEffing (Hunt class)</div><div class="chat-line msg-type-system">=Flipd= Thatoldmilk (Z20 Karl Galster) destroyed AliEffing (Hunt class)</div><div class="chat-line msg-type-system">=Flipd= Thatoldmilk (Z20 Karl Galster) has achieved "Ship Rescuer"</div><div class="chat-line msg-type-system">PrinceOfCats (Pr. 7U) has achieved "Teamwork: x2"</div><div class="chat-line msg-type-system">furorteutonicus1 (Type 1934A) destroyed -33GAT- roch2 (Clemson)</div><div class="chat-line msg-type-system">furorteutonicus1 (Type 1934A) has achieved "Ship Rescuer"</div><div class="chat-line msg-type-system">Vasiok2004 (K-2) set afire Muro2211 (Type 1924)</div><div class="chat-line msg-type-system">⋇dist19 (Battle) set afire Hisashi (Groza)</div><div class="chat-line msg-type-system">⋇dist19 (Battle) destroyed Hisashi (Groza)</div><div class="chat-line msg-type-system">=Flipd= Thatoldmilk (Z20 Karl Galster) destroyed Jorg (MZ1)</div><div class="chat-line msg-type-system">furorteutonicus1 (Type 1934A) destroyed ⋇wide_tourism0 (PT-6)</div><div class="chat-line msg-type-system">furorteutonicus1 (Type 1934A) has achieved "Ship Rescuer"</div><div class="chat-line msg-type-system">furorteutonicus1 (Type 1934A) has achieved "Double strike!"</div><div class="chat-line msg-type-system">Muro2211 (Type 1924) set afire Vasiok2004 (K-2)</div><div class="chat-line msg-type-system">=Flipd= Thatoldmilk (Z20 Karl Galster) set afire -33GAT- roch2 (Clemson)</div><div class="chat-line msg-type-system">=Flipd= Thatoldmilk (Z20 Karl Galster) destroyed -33GAT- roch2 (Clemson)</div><div class="chat-line msg-type-system">=Flipd= Thatoldmilk (Z20 Karl Galster) has achieved "Ship Rescuer"</div><div class="chat-line msg-type-system">PrinceOfCats (Pr. 7U) has achieved "Teamwork: x3"</div><div class="chat-line msg-type-system">⋇ItsPatrick__YT (Clemson) has crashed.</div><div class="chat-line msg-type-system">=Flipd= Thatoldmilk (Z20 Karl Galster) set afire ⋇wide_tourism0 (Clemson)</div><div class="chat-line msg-type-system">Vasiok2004 (K-2) set afire Muro2211 (Type 1924)</div><div class="chat-line msg-type-system">PrinceOfCats (Pr. 7U) destroyed ⋇wide_tourism0 (Clemson)</div><div class="chat-line msg-type-system">=Flipd= Thatoldmilk (Z20 Karl Galster) has achieved "Supporting Fire x1"</div><div class="chat-line msg-type-system">=Flipd= Thatoldmilk (Z20 Karl Galster) has achieved "Teamwork: x1"</div><div class="chat-line msg-type-system">PrinceOfCats (Pr. 7U) has achieved "Ship Rescuer"</div><div class="chat-line msg-type-system">=Flipd= Thatoldmilk (Z20 Karl Galster) set afire -33GAT- roch2 (Clemson)</div><div class="chat-line msg-type-system">Muro2211 (Type 1924) destroyed Vasiok2004 (K-2)</div><div class="chat-line msg-type-system">Muro2211 (Type 1924) has achieved "Ship Rescuer"</div><div class="chat-line msg-type-system">furorteutonicus1 (Type 1934A) set afire Norisuke (Town)</div><div class="chat-line msg-type-system">AliEffing (Wellington) set afire PrinceOfCats (Pr. 7U)</div><div class="chat-line msg-type-system">AliEffing (Wellington) destroyed PrinceOfCats (Pr. 7U)</div><div class="chat-line msg-type-system">=Flipd= Thatoldmilk (Z20 Karl Galster) destroyed -33GAT- roch2 (Clemson)</div><div class="chat-line msg-type-system">Fuvezer (Clemson) has achieved "Assists streak: x3!"</div><div class="chat-line msg-type-system">⋇seanboerboom (Type 1934A) set afire MarcoAgrippa8 (Turbine)</div><div class="chat-line msg-type-system">⋇seanboerboom (Type 1934A) destroyed MarcoAgrippa8 (Turbine)</div><div class="chat-line msg-type-system">furorteutonicus1 (Type 1934A) shot down AliEffing (Wellington)</div><div class="chat-line msg-type-system">furorteutonicus1 (Type 1934A) has achieved "Avenger"</div><div class="chat-line msg-type-system">furorteutonicus1 (Type 1934A) set afire ⋇dist19 (Battle)</div><div class="chat-line msg-type-system">AliEffing has disconnected from the game.</div><div class="chat-line msg-type-system">AliEffingtd! kd?NET_PLAYER_DISCONNECT_FROM_GAME</div><div class="chat-line msg-type-system">GD_KarlBogenagen (Type 1939) set afire Jorg (Type 1939)</div><div class="chat-line msg-type-system">⋇dist19 (Battle) set afire furorteutonicus1 (Type 1934A)</div><div class="chat-line msg-type-system">=Flipd= Thatoldmilk (Z20 Karl Galster) set afire MarcoAgrippa8 (Turbine)</div><div class="chat-line msg-type-system">=Flipd= Thatoldmilk (Z20 Karl Galster) destroyed MarcoAgrippa8 (Turbine)</div><div class="chat-line msg-type-system">=Flipd= Thatoldmilk (Z20 Karl Galster) has achieved "Ship Rescuer"</div><div class="chat-line msg-type-system">=Flipd= Thatoldmilk (Z20 Karl Galster) has achieved "Professional: x5"</div><div class="chat-line msg-type-system">Fuvezer (Clemson) has achieved "Assists streak: x4!"</div><div class="chat-line msg-type-system">Nathan (Clemson) set afire ⋇dist19 (Battle)</div><div class="chat-line msg-type-system">⋇dist19 (Battle) set afire Nathan (Clemson)</div><div class="chat-line msg-type-system">Vasdiszno (Type 1939) damaged ⋇wide_tourism0 (P-36G)</div><div class="chat-line msg-type-system">⋇dist19 (Battle) set afire PrinceOfCats (Moskva)</div><div class="chat-line msg-type-system">Vasdiszno (Type 1939) set afire ⋇wide_tourism0 (P-36G)</div><div class="chat-line msg-type-system">Vasdiszno (Type 1939) shot down ⋇wide_tourism0 (P-36G)</div><div class="chat-line msg-type-system">Nathan (Clemson) set afire ⋇dist19 (Battle)</div><div class="chat-line msg-type-system">⋇seanboerboom (Type 1934A) destroyed Jorg (Type 1939)</div><div class="chat-line msg-type-system">furorteutonicus1 (Type 1934A) destroyed Norisuke (Town)</div><div class="chat-line msg-type-system">Muro2211 (Type 1924) set afire Vasiok2004 (Type 1939)</div><div class="chat-line msg-type-system">GD_KarlBogenagen (Type 1939) damaged -33GAT- roch2 (TBF)</div><div class="chat-line msg-type-system">GD_KarlBogenagen (Type 1939) shot down -33GAT- roch2 (TBF)</div><div class="chat-line msg-type-system">⋇dist19 (Battle) destroyed PrinceOfCats (Moskva)</div><div class="chat-line msg-type-system">-33GAT- roch2 has disconnected from the game.</div><div class="chat-line msg-type-system">roch2td! kd?NET_PLAYER_DISCONNECT_FROM_GAME</div><div class="chat-line msg-type-system">MarcoAgrippa8 (F.C.20 Bis) set afire Fuvezer (Clemson)</div><div class="chat-line msg-type-system">Jorg (Type 1924) destroyed Fuvezer (Clemson)</div><div class="chat-line msg-type-system">Vasiok2004 (Type 1939) destroyed ⋇seanboerboom (Type 1934A)</div><div class="chat-line msg-type-system">Muro2211 (Type 1924) set afire Vasiok2004 (Type 1939)</div><div class="chat-line msg-type-system">furorteutonicus1 (Type 1934A) destroyed Masasuke (Fairmile D)</div><div class="chat-line msg-type-system">⋇dist19 (Battle) destroyed Nathan (Clemson)</div><div class="chat-line msg-type-system">Vasiok2004 (Type 1939) set afire Muro2211 (Type 1924)</div><div class="chat-line msg-type-system">MarcoAgrippa8 (Turbine) destroyed GD_KarlBogenagen (Type 1939)</div><div class="chat-line msg-type-system">Vasdiszno (Type 1939) set afire Jorg (Type 1924)</div><div class="chat-line msg-type-system">⋇dist19 (Battle) set afire =Flipd= Thatoldmilk (Z20 Karl Galster)</div><div class="chat-line msg-type-system">Muro2211 (Type 1924) destroyed Vasiok2004 (Type 1939)</div><div class="chat-line msg-type-system">Muro2211 (Type 1924) has achieved "Ship Rescuer"</div><div class="chat-line msg-type-system">Jorg (Type 1924) set afire Vasdiszno (Type 1939)</div><div class="chat-line msg-type-system">=Flipd= Thatoldmilk (Z20 Karl Galster) set afire ⋇dist19 (Battle)</div><div class="chat-line msg-type-system">=Flipd= Thatoldmilk (Z20 Karl Galster) destroyed ⋇dist19 (Battle)</div><div class="chat-line msg-type-system">=Flipd= Thatoldmilk (Z20 Karl Galster) has achieved "Ship Rescuer"</div><div class="chat-line msg-type-system">=Flipd= Thatoldmilk (Z20 Karl Galster) has achieved "Professional: x6"</div><div class="chat-line msg-type-system">PrinceOfCats (Pr. 30) has achieved "Supporting Fire x1"</div><div class="chat-line msg-type-system">=Flipd= Thatoldmilk (Z20 Karl Galster) set afire MARCOBAIMA05 (PC-451)</div><div class="chat-line msg-type-system">Vasiok2004 (Type 1939) destroyed Muro2211 (Type 1924)</div><div class="chat-line msg-type-system">=Flipd= Thatoldmilk (Z20 Karl Galster) destroyed MARCOBAIMA05 (PC-451)</div><div class="chat-line msg-type-system">=Flipd= Thatoldmilk (Z20 Karl Galster) has achieved "Ship Rescuer"</div><div class="chat-line msg-type-system">=Flipd= Thatoldmilk (Z20 Karl Galster) has achieved "Professional: x7"</div><div class="chat-line msg-type-system">=Flipd= Thatoldmilk (Z20 Karl Galster) has achieved "Double strike!"</div><div class="chat-line msg-type-system">Vasdiszno (Type 1939) destroyed Jorg (Type 1924)</div><div class="chat-line msg-type-system">furorteutonicus1 (Type 1934A) set afire Miron (Clemson)</div><div class="chat-line msg-type-system">Vasdiszno (Type 1939) set afire ⋇dist19 (Battle)</div><div class="chat-line msg-type-system">⋇dist19 (Battle) set afire =Flipd= Thatoldmilk (Z20 Karl Galster)</div><div class="chat-line msg-type-system">Fuvezer (P-400) has crashed.</div><div class="chat-line msg-type-system">furorteutonicus1 (Type 1934A) destroyed Miron (Clemson)</div><div class="chat-line msg-type-system">=Flipd= Thatoldmilk (Z20 Karl Galster) set afire ⋇dist19 (Battle)</div><div class="chat-line msg-type-system">=Flipd= Thatoldmilk (Z20 Karl Galster) destroyed ⋇dist19 (Battle)</div><div class="chat-line msg-type-system">=Flipd= Thatoldmilk (Z20 Karl Galster) has achieved "Ship Rescuer"</div><div class="chat-line msg-type-system">=Flipd= Thatoldmilk (Z20 Karl Galster) has achieved "Professional: x8"</div><div class="chat-line msg-type-system">Vasdiszno (Type 1939) destroyed Masasuke (G-class)</div><div class="chat-line msg-type-system">Fuvezer (Clemson) has crashed.</div><div class="chat-line msg-type-system">furorteutonicus1 (Type 1934A) damaged MARCOBAIMA05 (PBY-5)</div><div class="chat-line msg-type-system">furorteutonicus1 (Type 1934A) shot down MARCOBAIMA05 (PBY-5)</div><div class="chat-line msg-type-system">furorteutonicus1 (Type 1934A) has achieved "Professional: x5"</div><div class="chat-line msg-type-system">⋇dist19 (Tribal) destroyed Vasdiszno (Type 1939)</div><div class="chat-line msg-type-system">furorteutonicus1 (Type 1934A) set afire ⋇dist19 (Tribal)</div><div class="chat-line msg-type-system">=Flipd= Thatoldmilk (Z20 Karl Galster) has achieved "Terror of the Sea"</div><div class="chat-line msg-type-system">=Flipd= Thatoldmilk (Z20 Karl Galster) has achieved "Survivor"</div><div class="chat-line msg-type-system">=Flipd= Thatoldmilk (Z20 Karl Galster) has achieved "The Best Squad"</div><div class="chat-line msg-type-system">AliEffing (Wellington) has achieved "Balancer"</div><div class="chat-line msg-type-system">⋇dist19 (Tribal) has delivered the final blow!</div><div class="chat-line msg-type-system">PrinceOfCats (Pr. 30) has achieved "The Best Squad"</div><div class="chat-line msg-type-system">Fuvezer (Clemson) has achieved "Wingman"</div><div class="chat-line msg-type-system">Fuvezer (Clemson) has achieved "On Hand"</div><div class="chat-line msg-type-system">MARCOBAIMA05 has disconnected from the game.</div><div class="chat-line msg-type-system">MARCOBAIMA05td! kd?NET_PLAYER_DISCONNECT_FROM_GAME</div></div>
+  <div class="ui-resizable-handle ui-resizable-e" style="z-index: 90;"></div><div class="ui-resizable-handle ui-resizable-s" style="z-index: 90;"></div><div class="ui-resizable-handle ui-resizable-se ui-icon ui-icon-gripsmall-diagonal-se" style="z-index: 90;"></div></div>
+
+  <div id="indicators-root" class="ui-draggable ui-resizable" style="left: 1581px; top: 609px;">
+    <div class="caption"><div id="draghandle"></div></div>
+    <div id="indicators">
+      <ul id="indicators0" class="connectedIndicators ui-sortable" style="display: none;"><li id="ind-type" style="display: none;">type=dummy_plane</li><li id="ind-speed" style="display: none;"></li><li id="ind-speed_01" style="display: none;"></li><li id="ind-speed_02" style="display: none;"></li><li id="ind-pedals" style="display: none;"></li><li id="ind-pedals0" style="display: none;"></li><li id="ind-pedals1" style="display: none;"></li><li id="ind-pedals2" style="display: none;"></li><li id="ind-pedals3" style="display: none;"></li><li id="ind-pedals4" style="display: none;"></li><li id="ind-pedals5" style="display: none;"></li><li id="ind-pedals6" style="display: none;"></li><li id="ind-pedals7" style="display: none;"></li><li id="ind-pedals8" style="display: none;"></li><li id="ind-stick_elevator" style="display: none;"></li><li id="ind-stick_ailerons" style="display: none;"></li><li id="ind-vario" style="display: none;"></li><li id="ind-altitude_hour" style="display: none;"></li><li id="ind-altitude_min" style="display: none;"></li><li id="ind-altitude_10k" style="display: none;"></li><li id="ind-aviahorizon_roll" style="display: none;"></li><li id="ind-aviahorizon_pitch" style="display: none;"></li><li id="ind-aviahorizon_roll1" style="display: none;"></li><li id="ind-aviahorizon_pitch1" style="display: none;"></li><li id="ind-bank" style="display: none;"></li><li id="ind-bank1" style="display: none;"></li><li id="ind-bank2" style="display: none;"></li><li id="ind-turn" style="display: none;"></li><li id="ind-turn1" style="display: none;"></li><li id="ind-turn2" style="display: none;"></li><li id="ind-compass" style="display: none;"></li><li id="ind-compass1" style="display: none;"></li><li id="ind-compass2" style="display: none;"></li><li id="ind-compass3" style="display: none;"></li><li id="ind-compass4" style="display: none;"></li><li id="ind-clock_hour" style="display: none;"></li><li id="ind-clock_min" style="display: none;"></li><li id="ind-clock_sec" style="display: none;"></li><li id="ind-g_meter" style="display: none;"></li><li id="ind-manifold_pressure" style="display: none;"></li><li id="ind-manifold_pressure1" style="display: none;"></li><li id="ind-manifold_pressure2" style="display: none;"></li><li id="ind-manifold_pressure3" style="display: none;"></li><li id="ind-head_temperature" style="display: none;"></li><li id="ind-head_temperature1" style="display: none;"></li><li id="ind-head_temperature2" style="display: none;"></li><li id="ind-head_temperature3" style="display: none;"></li><li id="ind-mixture" style="display: none;"></li><li id="ind-mixture1" style="display: none;"></li><li id="ind-mixture2" style="display: none;"></li><li id="ind-mixture3" style="display: none;"></li><li id="ind-oxygen" style="display: none;"></li><li id="ind-gears" style="display: none;"></li><li id="ind-gears1" style="display: none;"></li><li id="ind-gears2" style="display: none;"></li><li id="ind-gears_lamp" style="display: none;"></li><li id="ind-flaps" style="display: none;"></li><li id="ind-trimmer" style="display: none;"></li><li id="ind-weapon1" style="display: none;"></li><li id="ind-weapon2" style="display: none;"></li><li id="ind-weapon3" style="display: none;"></li><li id="ind-prop_pitch" style="display: none;"></li><li id="ind-prop_pitch_hour" style="display: none;"></li><li id="ind-prop_pitch_hour1" style="display: none;"></li><li id="ind-prop_pitch_hour2" style="display: none;"></li><li id="ind-prop_pitch_hour3" style="display: none;"></li><li id="ind-prop_pitch_min" style="display: none;"></li><li id="ind-prop_pitch_min1" style="display: none;"></li><li id="ind-prop_pitch_min2" style="display: none;"></li><li id="ind-prop_pitch_min3" style="display: none;"></li><li id="ind-ammo_counter" style="display: none;"></li><li id="ind-ammo_counter1" style="display: none;"></li><li id="ind-ammo_counter2" style="display: none;"></li><li id="ind-ammo_counter3" style="display: none;"></li><li id="ind-ammo_counter4" style="display: none;"></li><li id="ind-ammo_counter5" style="display: none;"></li><li id="ind-ammo_counter6" style="display: none;"></li><li id="ind-ammo_counter7" style="display: none;"></li><li id="ind-flaps_indicator" style="display: none;"></li><li id="ind-gears_indicator" style="display: none;"></li><li id="ind-radiator" style="display: none;"></li></ul>
+      <ul id="indicators1" class="connectedIndicators ui-sortable"><li id="ind-rpm" style="display: none;"></li><li id="ind-rpm1" style="display: none;"></li><li id="ind-rpm2" style="display: none;"></li><li id="ind-rpm3" style="display: none;"></li><li id="ind-rpm_min" style="display: none;"></li><li id="ind-rpm1_min" style="display: none;"></li><li id="ind-rpm2_min" style="display: none;"></li><li id="ind-rpm3_min" style="display: none;"></li><li id="ind-rpm_hour" style="display: none;"></li><li id="ind-rpm1_hour" style="display: none;"></li><li id="ind-rpm2_hour" style="display: none;"></li><li id="ind-rpm3_hour" style="display: none;"></li><li id="ind-oil_pressure" style="display: none;"></li><li id="ind-oil_pressure1" style="display: none;"></li><li id="ind-oil_pressure2" style="display: none;"></li><li id="ind-oil_pressure3" style="display: none;"></li><li id="ind-oil_temperature" style="display: none;"></li><li id="ind-oil_temperature1" style="display: none;"></li><li id="ind-oil_temperature2" style="display: none;"></li><li id="ind-oil_temperature3" style="display: none;"></li><li id="ind-water_temperature" style="display: none;"></li><li id="ind-water_temperature1" style="display: none;"></li><li id="ind-water_temperature2" style="display: none;"></li><li id="ind-water_temperature3" style="display: none;"></li><li id="ind-carb_temperature" style="display: none;"></li><li id="ind-carb_temperature1" style="display: none;"></li><li id="ind-carb_temperature2" style="display: none;"></li><li id="ind-carb_temperature3" style="display: none;"></li><li id="ind-fuel" style="display: none;"></li><li id="ind-fuel1" style="display: none;"></li><li id="ind-fuel2" style="display: none;"></li><li id="ind-fuel_pressure" style="display: none;"></li><li id="ind-fuel_pressure1" style="display: none;"></li><li id="ind-fuel_pressure2" style="display: none;"></li><li id="ind-fuel_pressure3" style="display: none;"></li><li id="ind-fuel_consume" style="display: none;"></li><li id="ind-throttle" style="display: none;"></li><li id="ind-throttle1" style="display: none;"></li><li id="ind-throttle2" style="display: none;"></li><li id="ind-supercharger" style="display: none;"></li><li id="ind-supercharger1" style="display: none;"></li><li id="ind-supercharger2" style="display: none;"></li></ul>
+    </div>
+  <div class="ui-resizable-handle ui-resizable-e" style="z-index: 90;"></div><div class="ui-resizable-handle ui-resizable-s" style="z-index: 90;"></div><div class="ui-resizable-handle ui-resizable-se ui-icon ui-icon-gripsmall-diagonal-se" style="z-index: 90;"></div></div>
+  
+  <div id="state-root" class="ui-draggable ui-resizable" style="left: 1562px; top: 502px;">
+    <div class="caption"><div id="draghandle"></div></div>
+    <div id="state">
+      <ul id="state0" class="connectedState ui-sortable" style="display: none;"><li id="stt-H, m" style="display: none;">H, m=33</li><li id="stt-TAS, km/h" style="display: none;">TAS, km/h=0</li><li id="stt-IAS, km/h" style="display: none;">IAS, km/h=0</li><li id="stt-M" style="display: none;">M=0</li><li id="stt-AoA, deg" style="display: none;">AoA, deg=-9.9</li><li id="stt-AoS, deg" style="display: none;">AoS, deg=79.9</li><li id="stt-Ny" style="display: none;">Ny=0.95</li><li id="stt-Vy, m/s" style="display: none;">Vy, m/s=0</li><li id="stt-Wx, deg/s" style="display: none;">Wx, deg/s=0</li><li id="stt-Mfuel, kg" style="display: none;">Mfuel, kg=0</li><li id="stt-Mfuel0, kg" style="display: none;">Mfuel0, kg=3000</li><li id="stt-Mfuel 1, kg" style="display: none;"></li><li id="stt-Mfuel0 1, kg" style="display: none;"></li><li id="stt-undefined" style="display: none;"></li><li id="stt-Mfuel 2, kg" style="display: none;"></li><li id="stt-Mfuel0 2, kg" style="display: none;"></li><li id="stt-aileron, %" style="display: none;">aileron, %=0</li><li id="stt-elevator, %" style="display: none;">elevator, %=0</li><li id="stt-rudder, %" style="display: none;">rudder, %=0</li><li id="stt-flaps, %" style="display: none;">flaps, %=0</li><li id="stt-gear, %" style="display: none;">gear, %=100</li><li id="stt-airbrake, %" style="display: none;"></li></ul>
+      <ul id="state1" class="connectedState ui-sortable"><li id="stt-throttle 1, %" style="display: none;">throttle 1, %=0</li><li id="stt-RPM throttle 1, %" style="display: none;">RPM throttle 1, %=0</li><li id="stt-mixture 1, %" style="display: none;">mixture 1, %=100</li><li id="stt-radiator 1, %" style="display: none;">radiator 1, %=0</li><li id="stt-compressor stage 1" style="display: none;">compressor stage 1=2</li><li id="stt-magneto 1" style="display: none;">magneto 1=3</li><li id="stt-feathered 1" style="display: none;"></li><li id="stt-power 1, hp" style="display: none;">power 1, hp=0</li><li id="stt-RPM 1" style="display: none;">RPM 1=0</li><li id="stt-manifold pressure 1, atm" style="display: none;">manifold pressure 1, atm=1</li><li id="stt-water temp 1, C" style="display: none;">water temp 1, C=0</li><li id="stt-oil temp 1, C" style="display: none;">oil temp 1, C=15</li><li id="stt-pitch 1, deg" style="display: none;">pitch 1, deg=36.1</li><li id="stt-thrust 1, kgs" style="display: none;">thrust 1, kgs=0</li><li id="stt-efficiency 1, %" style="display: none;">efficiency 1, %=0</li><li id="stt-throttle 2, %" style="display: none;">throttle 2, %=0</li><li id="stt-RPM throttle 2, %" style="display: none;">RPM throttle 2, %=0</li><li id="stt-mixture 2, %" style="display: none;">mixture 2, %=100</li><li id="stt-radiator 2, %" style="display: none;">radiator 2, %=0</li><li id="stt-compressor stage 2" style="display: none;">compressor stage 2=2</li><li id="stt-magneto 2" style="display: none;">magneto 2=3</li><li id="stt-feathered 2" style="display: none;"></li><li id="stt-power 2, hp" style="display: none;">power 2, hp=0</li><li id="stt-RPM 2" style="display: none;">RPM 2=0</li><li id="stt-manifold pressure 2, atm" style="display: none;">manifold pressure 2, atm=1</li><li id="stt-water temp 2, C" style="display: none;"></li><li id="stt-oil temp 2, C" style="display: none;">oil temp 2, C=15</li><li id="stt-pitch 2, deg" style="display: none;">pitch 2, deg=36.1</li><li id="stt-thrust 2, kgs" style="display: none;">thrust 2, kgs=0</li><li id="stt-efficiency 2, %" style="display: none;">efficiency 2, %=0</li><li id="stt-throttle 3, %" style="display: none;"></li><li id="stt-RPM throttle 3, %" style="display: none;"></li><li id="stt-mixture 3, %" style="display: none;"></li><li id="stt-radiator 3, %" style="display: none;"></li><li id="stt-compressor stage 3" style="display: none;"></li><li id="stt-magneto 3" style="display: none;"></li><li id="stt-feathered 3" style="display: none;"></li><li id="stt-power 3, hp" style="display: none;"></li><li id="stt-RPM 3" style="display: none;"></li><li id="stt-manifold pressure 3, atm" style="display: none;"></li><li id="stt-water temp 3, C" style="display: none;"></li><li id="stt-oil temp 3, C" style="display: none;"></li><li id="stt-pitch 3, deg" style="display: none;"></li><li id="stt-thrust 3, kgs" style="display: none;"></li><li id="stt-efficiency 3, %" style="display: none;"></li><li id="stt-throttle 4, %" style="display: none;"></li><li id="stt-RPM throttle 4, %" style="display: none;"></li><li id="stt-mixture 4, %" style="display: none;"></li><li id="stt-radiator 4, %" style="display: none;"></li><li id="stt-compressor stage 4" style="display: none;"></li><li id="stt-magneto 4" style="display: none;"></li><li id="stt-feathered 4" style="display: none;"></li><li id="stt-power 4, hp" style="display: none;"></li><li id="stt-RPM 4" style="display: none;"></li><li id="stt-manifold pressure 4, atm" style="display: none;"></li><li id="stt-water temp 4, C" style="display: none;"></li><li id="stt-oil temp 4, C" style="display: none;"></li><li id="stt-pitch 4, deg" style="display: none;"></li><li id="stt-thrust 4, kgs" style="display: none;"></li><li id="stt-efficiency 4, %" style="display: none;"></li></ul>
+    </div>
+  <div class="ui-resizable-handle ui-resizable-e" style="z-index: 90;"></div><div class="ui-resizable-handle ui-resizable-s" style="z-index: 90;"></div><div class="ui-resizable-handle ui-resizable-se ui-icon ui-icon-gripsmall-diagonal-se" style="z-index: 90;"></div></div>
+  
+
+
+
+<script src="chrome-extension://hhojmcideegachlhfgfdhailpfhgknjm/web_accessible_resources/index.js"></script></body></html>
