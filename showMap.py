@@ -22,7 +22,7 @@ baseUrl = 'http://127.0.0.1:8111/'.rstrip('/')
 #mapInfo = json.loads(requests.get(baseUrl + 'map_info.json').content)
 #print(json.dumps(mapObj, indent=2, sort_keys=True))
 objTypes = []
-correction = [0, 0]
+correction = [0, 0, 0.0]
 zoneLetters = ['A', 'B', 'C', 'D']
 msgActions = ['destroyed', 'has achieved', 'has disconnected', 'set afire', 'has delivered', 'damaged', 'shot down', 'has crashed', 'performed a soft landing', 'has been wrecked']
 gridLetters = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z', 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z']
@@ -45,6 +45,7 @@ class colorList:
 	orange =		(220, 162, 57)
 	green =			(70, 180, 50)
 	blue =			(80, 120, 250)
+	background =	(55, 55, 55)
 
 
 class MapObject():
@@ -449,31 +450,56 @@ class WarThunderMap():
 			fromUrl = Image.open(BytesIO(self.rawMap))
 			fromUrl.save('converted.gif', format='gif')
 			pgImage = pygame.image.load('converted.gif')
-			self.map = pygame.transform.scale(pgImage, (self.mapWidth, self.mapWidth))
+
+
+
+
+			# create two maps, one scaled and one zoomed
+			self.mapScaled = pygame.transform.scale(pgImage, (self.mapWidth, self.mapWidth))
+
+
+
+
+
+
 			self.zoomCoords = self.calculateZoom()
-			if args.zoom:
-				self.zoomFactor = [-self.zoomCoords[0], -self.zoomCoords[1], self.mapWidth / self.zoomCoords[2]]
+			_cutOut = self.mapScaled.subsurface((self.zoomCoords[0], self.zoomCoords[1], self.zoomCoords[2], self.zoomCoords[3]))
+			self.mapZoomed = pygame.transform.scale(_cutOut, (self.mapWidth, self.mapWidth))
+
+
+			self.zoomFactor = [-self.zoomCoords[0], -self.zoomCoords[1], self.mapWidth / self.zoomCoords[2]] if args.zoom else [0, 0, 1.0]
 			if args.debug: print('no of objects at time of zoom calculation:', len( self.mapObjects ))
 		# draw frames
-		self.display.fill((55, 55, 55))
-		pygame.draw.rect(self.display, colors.almostBlack, (15, 15, 1020, 1020))		# map border
+		self.display.fill(colors.background)
 		if args.zoom and self.zoomCoords and self.zoomCoords != (19, 19, 1012, 1012):
-			if args.debug: print("'Zoom rectangle is returned (from drawMapImage) as :", self.zoomCoords)
-			_cutOut = self.map.subsurface((self.zoomCoords[0], self.zoomCoords[1], self.zoomCoords[2], self.zoomCoords[3]))
-			self.mapZoomed = pygame.transform.scale(_cutOut, (self.mapWidth, self.mapWidth))
 			self.display.blit(self.mapZoomed, (19, 19))
 		else:
-			self.display.blit(self.map, (19, 19))
-			if args.showzoom:
-				pygame.draw.rect(self.display, colors.red, (self.zoomCoords[0] + 19, self.zoomCoords[1] + 19, self.zoomCoords[2], self.zoomCoords[3]), 2)
-		pygame.draw.rect(self.display, colors.almostBlack, (1040, 15,  871, 498))		# right upper frame
-		pygame.draw.rect(self.display, colors.darkGrey, (1044, 19,  862, 490))		# right upper window
-		pygame.draw.rect(self.display, colors.almostBlack, (1040, 537, 871, 498))		# right lower frame
-		pygame.draw.rect(self.display, colors.darkGrey, (1044, 541, 862, 490))		# right lower window
+			self.display.blit(self.mapScaled, (19, 19))
+			if args.showzoom:		# +/-2 on coordinates to counter rectangle line-width 
+				pygame.draw.rect(self.display, colors.red, (self.zoomCoords[0] + 19 - 2, self.zoomCoords[1] + 19 - 2, self.zoomCoords[2] + 2, self.zoomCoords[3] + 2), 2)
+		return True
+
+
+
+	def drawBorders(self):
+		""" lastly drawn, adds the borders """
+		pygame.draw.rect(self.display, colors.almostBlack, (15, 15, 1020, 1020), 7)						# map border
+		pygame.draw.rect(self.display, colors.almostBlack, (1040, 15,  871, 498))							# right upper frame
+		pygame.draw.rect(self.display, colors.darkGrey, (1044, 19,  862, 490))							# right upper window
+		pygame.draw.rect(self.display, colors.almostBlack, (1040, 537, 871, 498))							# right lower frame
+		pygame.draw.rect(self.display, colors.darkGrey, (1044, 541, 862, 490))							# right lower window
+		# hide overflow
+		pygame.draw.rect(self.display, colors.background, (0, 0, self.width, 15))							# window top
+		pygame.draw.rect(self.display, colors.background, (0, 0, 15, self.height))						# window left
+		pygame.draw.rect(self.display, colors.background, (0, self.height - 45, self.width, 45))			# window bottom
+		pygame.draw.rect(self.display, colors.background, (self.width - 10, 0, 10, self.height))		# window right
+		pygame.draw.rect(self.display, colors.background, (1035, 0, 5, self.height))						# middle
+		# print scale on map
 		_scale = str(round(self.mapWidth / self.zoomCoords[2], 4)) if args.zoom else '1'
 		text = font20.render('scale: ' + _scale, True, colors.green)
 		self.display.blit(text, (25, 1010))
 		return True
+
 
 
 	def initiateNewMap(self):
@@ -599,10 +625,7 @@ class WarThunderMap():
 					args.zoom = False if args.zoom else True
 					self.zoomCoords = self.calculateZoom()
 					self.zoomFactor = [-self.zoomCoords[0], -self.zoomCoords[1], self.mapWidth / self.zoomCoords[2]] if args.zoom else [0, 0, 1.0]
-
-
-
-
+				# for debug
 				elif event.key == pygame.K_RIGHT:
 					correction[0] += 1
 				elif event.key == pygame.K_LEFT:
@@ -611,14 +634,18 @@ class WarThunderMap():
 					correction[1] -= 1
 				elif event.key == pygame.K_DOWN:
 					correction[1] += 1
+				elif event.key == pygame.K_a:
+					correction[2] -= 1
+				elif event.key == pygame.K_d:
+					correction[2] += 1
 				elif event.key == pygame.K_p:
+#					for x in self.drawList:
+#						if x.type == 150:
+#							print(x.xPos, x.yPos)
+#					print(correction)
 					print(self.zoomCoords)
 					print(self.zoomFactor)
-					time.sleep(3)
-
-
-
-
+#					time.sleep(3)
 
 
 	def loop(self):
@@ -633,6 +660,7 @@ class WarThunderMap():
 				self.writeMsg()
 				for obj in self.drawList:
 					obj.draw(self.display, self.zoomFactor)
+				self.drawBorders()
 				pygame.display.update()
 				self.checkKey()
 			else:
@@ -658,20 +686,16 @@ colors = colorList
 obj = WarThunderMap()
 
 # --- TODO ---------------------------------------------------------------------------------------
-# - zoom
-#	- get zoom from big map, not zoomed map
-#	- scale grid
-#	- test player på 0,0
-#	- fix wrong scale of airplanes on seamaps
+# - get zoom from big map, not zoomed map
+# - scale grid
+# - fix wrong scale of airplanes on seamaps
 
 
 
-
-
-
-
+# In the menu, you can turn the tracking system on or off for falling of your shells with a caliber equal to or greater than 100 mm.
 # http://127.0.0.1:8111/gamechat?lastId=1
 # http://127.0.0.1:8111/hudmsg?lastEvt=0&lastDmg=1
 # http://127.0.0.1:8111/map_info.json
+
 
 
