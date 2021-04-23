@@ -80,13 +80,13 @@ class MapObject():
 		elif oType == 6:		# respawn, ship
 				self.image = pygame.image.load("icons/ship_spawn_red.png") if color == (255, 13, 0) else pygame.image.load("icons/ship_spawn_blue.png")
 		elif oType == 7:		# SPAA
-			self.image = pygame.Surface((13, 13), pygame.SRCALPHA)
-			pygame.draw.rect(self.image, colors.black,	(0, 9, 13, 4))
-			pygame.draw.rect(self.image, colors.black,	(1, 5, 4, 8))
-			pygame.draw.rect(self.image, colors.black,	(8, 5, 4, 8))
-			pygame.draw.rect(self.image, color,	(1, 10, 11, 2))
-			pygame.draw.rect(self.image, color,	(2, 6, 2, 6))
-			pygame.draw.rect(self.image, color,	(9, 6, 2, 6))
+			self.image = pygame.Surface((13, 8), pygame.SRCALPHA)
+			pygame.draw.rect(self.image, colors.black,	(0, 4, 13, 4))
+			pygame.draw.rect(self.image, colors.black,	(1, 0, 4, 8))
+			pygame.draw.rect(self.image, colors.black,	(8, 0, 4, 8))
+			pygame.draw.rect(self.image, color,	(1, 5, 11, 2))
+			pygame.draw.rect(self.image, color,	(2, 1, 2, 6))
+			pygame.draw.rect(self.image, color,	(9, 1, 2, 6))
 		elif oType == 8:		# fighter
 			self.image = pygame.Surface((13, 13), pygame.SRCALPHA)
 			pygame.draw.polygon(self.image, colors.black,	[(6, 0), (12, 6), (6, 12), (0, 6)], False)
@@ -159,9 +159,16 @@ class MapObject():
 			pygame.draw.rect(self.image, colors.black, (5, 2, 7, 2))
 		elif oType == 21:		# bombing point
 			self.image = pygame.Surface((19, 19), pygame.SRCALPHA)
-			pygame.draw.circle(self.image, color, (9, 9), 7, 2)
-			pygame.draw.rect(self.image, color, (8, 0, 1, 19))
-			pygame.draw.rect(self.image, color, (0, 8, 19, 1))
+			pygame.draw.circle(self.image, color, (9, 9), 7)
+			pygame.draw.circle(self.image, colors.black, (9, 9), 6)
+			pygame.draw.rect(self.image, color, (8, 0, 2, 18))
+			pygame.draw.rect(self.image, color, (0, 8, 18, 2))
+		elif oType == 22:		# defending point
+			self.image = pygame.Surface((19, 19), pygame.SRCALPHA)
+			pygame.draw.circle(self.image, color, (9, 9), 9)
+			pygame.draw.circle(self.image, colors.black, (9, 9), 8)
+			pygame.draw.rect(self.image, color, (5, 5, 8, 6))
+			pygame.draw.polygon(self.image, color, [(5, 11), (12, 11), (9, 14), (8, 14)], False)
 		elif oType == 95:		# airfield
 			_image = pygame.Surface((6 , 60), pygame.SRCALPHA)  		# always use same length for airfield
 			pygame.draw.rect(_image, colors.black, (0, 0, 6, 60))
@@ -179,10 +186,10 @@ class MapObject():
 #			self.xPos = 1
 #			self.yPos = 1
 
-		elif oType == 150:		# test dot
+		elif oType == 150:		# test dot for corners
 			self.image = pygame.Surface((1, 1), pygame.SRCALPHA)
 			self.image.fill((0, 255, 255))
-		else:
+		else:					# unknown object
 			self.image = pygame.Surface((7, 7), pygame.SRCALPHA)
 			pygame.draw.circle(self.image, colors.black, (3, 3), 3)
 			pygame.draw.circle(self.image, color, (3, 3), 2)
@@ -190,8 +197,8 @@ class MapObject():
 
 
 	def draw(self, _display, _zoom):
-		x = int((19 + self.xPos + _zoom[0]) * _zoom[2])
-		y = int((19 + self.yPos + _zoom[1]) * _zoom[2])
+		x = int((19 + self.xPos + _zoom[0]) * _zoom[2])# + correction[0]
+		y = int((19 + self.yPos + _zoom[1]) * _zoom[2])# + correction[1]
 		_display.blit(self.image, (x, y) )
 
 
@@ -214,8 +221,11 @@ class WarThunderMap():
 		self.lastId = [1,1]
 		self.zoomFactor = [0, 0, 1.0]
 		self.blinkingInterval = 0
-		self.display = pygame.display.set_mode((self.width,self.height))
+		pygame.init()
+		programIcon = pygame.image.load("icons/war_thunder_icon.png")
+		pygame.display.set_icon(programIcon)
 		pygame.display.set_caption('War Thunder current map')
+		self.display = pygame.display.set_mode((self.width,self.height))
 		self.loop()
 
 
@@ -288,25 +298,49 @@ class WarThunderMap():
 		if self.mapInfo:
 			mapSize = self.mapInfo['map_max'][0] - self.mapInfo['map_min'][0]
 			noOfSteps = mapSize / self.mapInfo['grid_steps'][0]
-			stepWidth = int(self.mapWidth / noOfSteps)
+			scale = self.mapWidth / self.zoomCoords[2] if args.zoom else 1
+			stepWidth = int(self.mapWidth / noOfSteps * scale)
 			# draw horizontal and vertical lines
-			counter = 0
-			for x in range(stepWidth, self.mapWidth, stepWidth):
-				x += 19
+			offsetX = int(-(self.zoomCoords[0] % stepWidth) * scale) if args.zoom else 0
+			offsetY = int(-(self.zoomCoords[1] % stepWidth) * scale) if args.zoom else 0
+			counterX = int((self.zoomCoords[0] - (self.zoomCoords[0] % stepWidth)) / stepWidth) if args.zoom else 0
+			counterY = int((self.zoomCoords[1] - (self.zoomCoords[1] % stepWidth)) / stepWidth) if args.zoom else 0
+			# draw vertical lines 
+			for x in range(stepWidth, self.mapWidth + stepWidth, stepWidth):
+				counterX += 1
+				x += 19 + offsetX
 				pygame.draw.line(self.display, colors.black, (x, 19), (x, self.mapHeight + 19))
-				pygame.draw.line(self.display, colors.black, (19, x), (self.mapWidth + 19, x))
-				text = font20.render(gridLetters[counter], True, colors.black)
+				text = font20.render(str(counterX + 1), True, colors.black)
 				text.set_alpha(127)
-				self.display.blit(text, (25, x - 5 - stepWidth / 2))
-				text2 = font20.render(str(counter + 1), True, colors.black)
+				w, h = text.get_size()
+				self.display.blit(text, (19 + int(x + (stepWidth / 2) - (w / 2)), 25))
+			# print first column number
+			text = font20.render('1', True, colors.black)
+			text.set_alpha(127)
+			w, h = text.get_size()
+			self.display.blit(text, (19 + int(((stepWidth + offsetX) / 2) - (w / 2)), 25))
+			# # draw horizontal lines
+			for x in range(stepWidth, self.mapWidth + stepWidth, stepWidth):
+				counterY += 1
+				x += 19 + offsetY
+				pygame.draw.line(self.display, colors.black, (19, x), (self.mapWidth + 19, x))
+				text2 = font20.render(gridLetters[counterY], True, colors.black)
 				text2.set_alpha(127)
-				self.display.blit(text2, (x - 5 - stepWidth / 2, 25))
-				counter += 1
+				w, h = text2.get_size()
+				self.display.blit(text2, (25, (19 + int(x + (stepWidth / 2) - (h / 2)))))
+			# print first row letter
+			text = font20.render('A', True, colors.black)
+			text.set_alpha(127)
+			w, h = text.get_size()
+			self.display.blit(text, (25, 19 + int(((stepWidth + offsetY) / 2) - (h / 2))))
+
+
 
 
 	def writeChat(self):
 		""" writes all strings from buffer in upper window """
 		yPos = 25
+		pygame.draw.rect(self.display, colors.darkGrey, (1048, 19,  860, 493))	# background
 		for nr, ts in enumerate(self.chatBuffer):
 			if ts['mode'] == "Team": txtColor = colors.grey
 			elif ts['mode'] == "Squad": txtColor = colors.green
@@ -319,9 +353,9 @@ class WarThunderMap():
 			textRect1 = text1.get_rect()
 			textRect2 = text2.get_rect()
 			textRect3 = text3.get_rect()
-			textRect1.topleft = (1050, yPos)
-			textRect2.topleft = (1115, yPos)
-			textRect3.topleft = (1125 + textRect2.w, yPos)
+			textRect1.topleft = (1055, yPos)
+			textRect2.topleft = (1120, yPos)
+			textRect3.topleft = (1130 + textRect2.w, yPos)
 			if ts['time'] != '00:00':
 				self.display.blit(text1, textRect1)
 				self.display.blit(text2, textRect2)
@@ -333,6 +367,7 @@ class WarThunderMap():
 	def writeMsg(self):
 		""" writes all strings from buffer in lower window """
 		yPos = 547
+		pygame.draw.rect(self.display, colors.darkGrey, (1048, 538, 860, 493))	# background
 		for nr, ts in enumerate(self.msgBuffer):
 			action = ''
 			if '(' in ts['msg']:
@@ -381,6 +416,7 @@ class WarThunderMap():
 		return True
 
 
+
 	def timeFromMapLoaded(self):
 		""" returns a texstring of minutes and seconds from when map was loaded """
 		timePassed = time.time() - self.timeMapLoaded
@@ -389,6 +425,7 @@ class WarThunderMap():
 		minsPad = mins if len(mins) > 1 else '0' + mins
 		secsPad = secs if len(secs) > 1 else '0' + secs
 		return minsPad + ':' + secsPad
+
 
 
 	def calculateZoom(self):
@@ -449,53 +486,49 @@ class WarThunderMap():
 			self.initiateNewMap()
 			fromUrl = Image.open(BytesIO(self.rawMap))
 			fromUrl.save('converted.gif', format='gif')
-			pgImage = pygame.image.load('converted.gif')
-
-
-
-
-			# create two maps, one scaled and one zoomed
-			self.mapScaled = pygame.transform.scale(pgImage, (self.mapWidth, self.mapWidth))
-
-
-
-
-
-
+			self.pgImage = pygame.image.load('converted.gif')
+			pgW, pgH = self.pgImage.get_size()
+			self.scale = pgW / self.mapWidth
+			# create two maps, one scaled and one zoomed, display on or the other
 			self.zoomCoords = self.calculateZoom()
-			_cutOut = self.mapScaled.subsurface((self.zoomCoords[0], self.zoomCoords[1], self.zoomCoords[2], self.zoomCoords[3]))
+			self.mapScaled = pygame.transform.scale(self.pgImage, (self.mapWidth, self.mapWidth))
+			_cutOut = self.pgImage.subsurface((self.zoomCoords[0] * self.scale, self.zoomCoords[1] * self.scale, self.zoomCoords[2] * self.scale, self.zoomCoords[3] * self.scale))
 			self.mapZoomed = pygame.transform.scale(_cutOut, (self.mapWidth, self.mapWidth))
-
-
 			self.zoomFactor = [-self.zoomCoords[0], -self.zoomCoords[1], self.mapWidth / self.zoomCoords[2]] if args.zoom else [0, 0, 1.0]
 			if args.debug: print('no of objects at time of zoom calculation:', len( self.mapObjects ))
 		# draw frames
 		self.display.fill(colors.background)
+		if args.updatezoom:
+			self.zoomCoords = self.calculateZoom()
+			self.mapScaled = pygame.transform.scale(self.pgImage, (self.mapWidth, self.mapWidth))
+			_cutOut = self.pgImage.subsurface((self.zoomCoords[0] * self.scale, self.zoomCoords[1] * self.scale, self.zoomCoords[2] * self.scale, self.zoomCoords[3] * self.scale))
+			self.mapZoomed = pygame.transform.scale(_cutOut, (self.mapWidth, self.mapWidth))
+			self.zoomFactor = [-self.zoomCoords[0], -self.zoomCoords[1], self.mapWidth / self.zoomCoords[2]] if args.zoom else [0, 0, 1.0]
 		if args.zoom and self.zoomCoords and self.zoomCoords != (19, 19, 1012, 1012):
 			self.display.blit(self.mapZoomed, (19, 19))
 		else:
 			self.display.blit(self.mapScaled, (19, 19))
-			if args.showzoom:		# +/-2 on coordinates to counter rectangle line-width 
-				pygame.draw.rect(self.display, colors.red, (self.zoomCoords[0] + 19 - 2, self.zoomCoords[1] + 19 - 2, self.zoomCoords[2] + 2, self.zoomCoords[3] + 2), 2)
 		return True
 
 
 
 	def drawBorders(self):
 		""" lastly drawn, adds the borders """
-		pygame.draw.rect(self.display, colors.almostBlack, (15, 15, 1020, 1020), 7)						# map border
-		pygame.draw.rect(self.display, colors.almostBlack, (1040, 15,  871, 498))							# right upper frame
-		pygame.draw.rect(self.display, colors.darkGrey, (1044, 19,  862, 490))							# right upper window
-		pygame.draw.rect(self.display, colors.almostBlack, (1040, 537, 871, 498))							# right lower frame
-		pygame.draw.rect(self.display, colors.darkGrey, (1044, 541, 862, 490))							# right lower window
+		pygame.draw.rect(self.display, colors.almostBlack, (16, 16, 1017, 1017), 4)							# map border
+		pygame.draw.rect(self.display, colors.almostBlack, (1045, 16,  865, 498), 4)					# right upper border
+		pygame.draw.rect(self.display, colors.almostBlack, (1045, 535, 865, 498), 4)						# right lower border
 		# hide overflow
 		pygame.draw.rect(self.display, colors.background, (0, 0, self.width, 15))							# window top
 		pygame.draw.rect(self.display, colors.background, (0, 0, 15, self.height))						# window left
 		pygame.draw.rect(self.display, colors.background, (0, self.height - 45, self.width, 45))			# window bottom
-		pygame.draw.rect(self.display, colors.background, (self.width - 10, 0, 10, self.height))		# window right
+		pygame.draw.rect(self.display, colors.background, (self.width - 8, 0, 8, self.height))			# window right
 		pygame.draw.rect(self.display, colors.background, (1035, 0, 5, self.height))						# middle
+		if not args.zoom and args.showzoom:		# +/-2 on coordinates to counter rectangle line-width
+			if args.updatezoom:
+				self.zoomCoords = self.calculateZoom()
+			pygame.draw.rect(self.display, colors.red, (self.zoomCoords[0] + 19 - 2, self.zoomCoords[1] + 19 - 2, self.zoomCoords[2] + 3, self.zoomCoords[3] + 3), 2)
 		# print scale on map
-		_scale = str(round(self.mapWidth / self.zoomCoords[2], 4)) if args.zoom else '1'
+		_scale = str(round(self.zoomCoords[2] / self.mapWidth, 4)) if args.zoom else '1'
 		text = font20.render('scale: ' + _scale, True, colors.green)
 		self.display.blit(text, (25, 1010))
 		return True
@@ -555,7 +588,7 @@ class WarThunderMap():
 				elif mo['icon'] == 'Player':
 					radians = math.atan2( mo['dx'], mo['dy'] )
 					angle = int( math.degrees(radians) )
-					self.drawList.append(MapObject(xPos, yPos, colors.white, 100, angle))
+					self.drawList.append(MapObject(xPos + 10, yPos + 10, colors.white, 100, angle))
 				else:
 					color = tuple( mo['color[]'] ) if not mo['blink'] or self.blinkingInterval != 1 else (255,255,0)
 					if mo['icon'] == 'capture_zone':
@@ -602,13 +635,18 @@ class WarThunderMap():
 						self.drawList.append(MapObject(xPos, yPos, color, 20))
 					elif mo['icon'] == 'bombing_point':
 						self.drawList.append(MapObject(xPos, yPos, color, 21))
-					elif mo['icon'] == 'defending_point':	# dunno what it is?
-						pass
+					elif mo['icon'] == 'defending_point':
+						self.drawList.append(MapObject(xPos, yPos, color, 22))
 					elif mo['icon'] == 'ground_model':	# dunno what it is?
-						pass
+						print('NOT Drawing ground_model at', xPos, yPos)
 					else:	# unknown object, shown by a colored circle/dot
 						print('Drawing unknown object:\n', mo)
 						self.drawList.append(MapObject(xPos, yPos, color, 0))
+				# an object has been created, corrects it's position to be center of the icon
+
+
+
+
 		self.drawList.sort(key=lambda x: x.type)
 
 
@@ -628,24 +666,26 @@ class WarThunderMap():
 				# for debug
 				elif event.key == pygame.K_RIGHT:
 					correction[0] += 1
+					print(correction)
 				elif event.key == pygame.K_LEFT:
 					correction[0] -= 1
+					print(correction)
 				elif event.key == pygame.K_UP:
 					correction[1] -= 1
+					print(correction)
 				elif event.key == pygame.K_DOWN:
 					correction[1] += 1
-				elif event.key == pygame.K_a:
-					correction[2] -= 1
-				elif event.key == pygame.K_d:
-					correction[2] += 1
+					print(correction)
+				elif event.key == pygame.K_w:
+					correction[2] -= 0.1
+					print(correction)
+				elif event.key == pygame.K_s:
+					correction[2] += 0.1
+					print(correction)
 				elif event.key == pygame.K_p:
-#					for x in self.drawList:
-#						if x.type == 150:
-#							print(x.xPos, x.yPos)
-#					print(correction)
 					print(self.zoomCoords)
 					print(self.zoomFactor)
-#					time.sleep(3)
+					time.sleep(3)
 
 
 	def loop(self):
@@ -656,18 +696,49 @@ class WarThunderMap():
 				self.getTextObjects()
 				self.drawMapImage()
 				self.drawGrid()
-				self.writeChat()
-				self.writeMsg()
 				for obj in self.drawList:
 					obj.draw(self.display, self.zoomFactor)
+				self.writeChat()
+				self.writeMsg()
 				self.drawBorders()
+
+
+
+
+
+
+				# testing objects' position
+				unikke = []
+				for x in range(0, 23):
+					unikke.append(MapObject(11, 1, colors.red, x))
+				unikke.append(MapObject(11, 1, colors.red, 95))
+				unikke.append(MapObject(11, 1, colors.red, 99))
+				unikke.append(MapObject(11, 1, colors.red, 100))
+				# kryds paa 100,100
+				pygame.draw.line(self.display, colors.red, (100, 50), (100, 150))
+				pygame.draw.line(self.display, colors.red, (50, 100), (150, 100))
+				pygame.draw.line(self.display, colors.green, (100, 100), (200, 200))
+				tObj = unikke[correction[0]]
+				tObj.xPos = 100 - 19
+				tObj.yPos = 100 - 19
+				tObj.draw(self.display, self.zoomFactor)
+
+
+
+
+
+
+
 				pygame.display.update()
-				self.checkKey()
 			else:
-				font30.set_bold(True)
-				text = font30.render('Waiting for War Thunder - server to reply...', True, colors.red, colors.black)
-				self.display.blit(text, (50, 50))
+				_clearScreen = pygame.Surface((self.width, self.height))
+				_clearScreen.fill(colors.background)
+				self.display.blit(_clearScreen, (0, 0) )
+				text = font30.render('Waiting for War Thunder - server to reply...', True, colors.red, colors.background)
+				w, h = text.get_size()
+				self.display.blit(text, (int(self.width / 2) - int(w/2), int(self.height / 3) - int(h/2) ))
 				pygame.display.flip()
+			self.checkKey()
 		pygame.quit()
 		print('\n  Program terminated by user\n')
 
@@ -680,19 +751,23 @@ parser.add_argument("-d", "--debug",		action="store_true",	help="Enables debuggi
 parser.add_argument("-z", "--zoom",			action="store_true",	help="Automatically zooms to a calculated area of action")
 parser.add_argument("-s", "--showzoom",		action="store_true",	help="Shows a rectangle on the area of the calculated zoom area")
 parser.add_argument("-c", "--showcorners",	action="store_true",	help="Shows the four corners of draw-area (for debugging)")
+parser.add_argument("-u", "--updatezoom",	action="store_true",	help="Recalculate zoom for each frame")
 args = parser.parse_args()
 
 colors = colorList
 obj = WarThunderMap()
 
-# --- TODO ---------------------------------------------------------------------------------------
-# - get zoom from big map, not zoomed map
-# - scale grid
+# --- TODO -------------------------------------------zzz--------------------------------------------
 # - fix wrong scale of airplanes on seamaps
+# - objekter flytter sig naar man skifter view paa spilllere
+
+# - weird movement of player in zoom  (noget med zoom-factor?)
+
 
 
 
 # In the menu, you can turn the tracking system on or off for falling of your shells with a caliber equal to or greater than 100 mm.
+
 # http://127.0.0.1:8111/gamechat?lastId=1
 # http://127.0.0.1:8111/hudmsg?lastEvt=0&lastDmg=1
 # http://127.0.0.1:8111/map_info.json
