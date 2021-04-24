@@ -177,15 +177,12 @@ class MapObject():
 		elif oType == 100:		# player
 			_image = pygame.image.load("icons/player.png")
 			self.image = pygame.transform.rotozoom(_image, angle, 1)
-			offset = pygame.math.Vector2(0, 10) # move rotaion 10 up from center
-			rotated_image = pygame.transform.rotozoom(_image, angle, 1)  # Rotate the image.
-			rotated_offset = offset.rotate(-angle)  # Rotate the offset vector the other way (-angle)
-			_rect = rotated_image.get_rect(center = [int(i) for i in ((xPos, yPos) + rotated_offset)])
-			self.xPos = _rect.x
-			self.yPos = _rect.y
-#			self.xPos = 1
-#			self.yPos = 1
-
+			# offset = pygame.math.Vector2(0, 10) # move rotaion 10 up from center
+			# rotated_image = pygame.transform.rotozoom(_image, angle, 1)  # Rotate the image.
+			# rotated_offset = offset.rotate(-angle)  # Rotate the offset vector the other way (-angle)
+			# _rect = rotated_image.get_rect(center = [int(i) for i in ((xPos, yPos) + rotated_offset)])
+			self.xPos -= 10	# correction of player position compared to other objects, unknown why
+			self.yPos -= 10
 		elif oType == 150:		# test dot for corners
 			self.image = pygame.Surface((1, 1), pygame.SRCALPHA)
 			self.image.fill((0, 255, 255))
@@ -197,8 +194,9 @@ class MapObject():
 
 
 	def draw(self, _display, _zoom):
-		x = int((19 + self.xPos + _zoom[0]) * _zoom[2])# + correction[0]
-		y = int((19 + self.yPos + _zoom[1]) * _zoom[2])# + correction[1]
+		w, h = self.image.get_size()
+		x = int((19 + self.xPos + _zoom[0]) * _zoom[2]) - int(w / 2)# + correction[0]
+		y = int((19 + self.yPos + _zoom[1]) * _zoom[2]) - int(h / 2)# + correction[1]
 		_display.blit(self.image, (x, y) )
 
 
@@ -584,69 +582,47 @@ class WarThunderMap():
 					deltaY = mo['sy'] - mo['ey']
 					radians = math.atan2( deltaX, deltaY )
 					angle = int( math.degrees(radians) )
-					self.drawList.append(MapObject(xPos, yPos, color, 95, angle))
+					newObj = MapObject(xPos, yPos, color, 95, angle)
 				elif mo['icon'] == 'Player':
 					radians = math.atan2( mo['dx'], mo['dy'] )
 					angle = int( math.degrees(radians) )
-					self.drawList.append(MapObject(xPos + 10, yPos + 10, colors.white, 100, angle))
+					newObj = MapObject(xPos + 10, yPos + 10, colors.white, 100, angle)
 				else:
 					color = tuple( mo['color[]'] ) if not mo['blink'] or self.blinkingInterval != 1 else (255,255,0)
 					if mo['icon'] == 'capture_zone':
-						self.drawList.append(MapObject(xPos, yPos, color, 99))
+						newObj = MapObject(xPos, yPos, color, 99)
 					elif mo['icon'] == 'respawn_base_bomber':
 						if 'Boat' in objTypes or 'TorpedoBoat' in objTypes:
-							self.drawList.append(MapObject(xPos, yPos, color, 5))
+							newObj = MapObject(xPos, yPos, color, 5)
 						else:
-							self.drawList.append(MapObject(xPos, yPos, color, 2))
+							newObj = MapObject(xPos, yPos, color, 2)
 					elif mo['icon'] == 'respawn_base_fighter':
 						if 'Boat' in objTypes or 'TorpedoBoat' in objTypes:
-							self.drawList.append(MapObject(xPos, yPos, color, 6))
+							newObj = MapObject(xPos, yPos, color, 6)
 						else:
-							self.drawList.append(MapObject(xPos, yPos, color, 3))
-					elif mo['icon'] == 'respawn_base_tank':
-						self.drawList.append(MapObject(xPos, yPos, color, 4))
-					elif mo['icon'] == 'SPAA':
-						self.drawList.append(MapObject(xPos, yPos, color, 7))
-					elif mo['icon'] == 'Fighter':
-						self.drawList.append(MapObject(xPos, yPos, color, 8))
-					elif mo['icon'] == 'Assault':
-						self.drawList.append(MapObject(xPos, yPos, color, 9))
-					elif mo['icon'] == 'Bomber':
-						self.drawList.append(MapObject(xPos, yPos, color, 10))
-					elif mo['icon'] == 'Airdefence':
-						self.drawList.append(MapObject(xPos, yPos, color, 11))
-					elif mo['icon'] == 'LightTank':
-						self.drawList.append(MapObject(xPos, yPos, color, 12))
-					elif mo['icon'] == 'MediumTank':
-						self.drawList.append(MapObject(xPos, yPos, color, 13))
-					elif mo['icon'] == 'HeavyTank':
-						self.drawList.append(MapObject(xPos, yPos, color, 14))
-					elif mo['icon'] == 'TankDestroyer':
-						self.drawList.append(MapObject(xPos, yPos, color, 15))
-					elif mo['icon'] == 'Tracked':
-						self.drawList.append(MapObject(xPos, yPos, color, 16))
-					elif mo['icon'] == 'Wheeled':
-						self.drawList.append(MapObject(xPos, yPos, color, 17))
-					elif mo['icon'] == 'Ship':
-						self.drawList.append(MapObject(xPos, yPos, color, 18))
-					elif mo['icon'] == 'Boat':
-						self.drawList.append(MapObject(xPos, yPos, color, 19))
-					elif mo['icon'] == 'TorpedoBoat':
-						self.drawList.append(MapObject(xPos, yPos, color, 20))
-					elif mo['icon'] == 'bombing_point':
-						self.drawList.append(MapObject(xPos, yPos, color, 21))
-					elif mo['icon'] == 'defending_point':
-						self.drawList.append(MapObject(xPos, yPos, color, 22))
-					elif mo['icon'] == 'ground_model':	# dunno what it is?
-						print('NOT Drawing ground_model at', xPos, yPos)
+							newObj = MapObject(xPos, yPos, color, 3)
+					elif mo['icon'] == 'respawn_base_tank':	newObj = MapObject(xPos, yPos, color, 4)
+					elif mo['icon'] == 'SPAA':				newObj = MapObject(xPos, yPos, color, 7)
+					elif mo['icon'] == 'Fighter':			newObj = MapObject(xPos, yPos, color, 8)
+					elif mo['icon'] == 'Assault':			newObj = MapObject(xPos, yPos, color, 9)
+					elif mo['icon'] == 'Bomber':			newObj = MapObject(xPos, yPos, color, 10)
+					elif mo['icon'] == 'Airdefence':		newObj = MapObject(xPos, yPos, color, 11)
+					elif mo['icon'] == 'LightTank':			newObj = MapObject(xPos, yPos, color, 12)
+					elif mo['icon'] == 'MediumTank':		newObj = MapObject(xPos, yPos, color, 13)
+					elif mo['icon'] == 'HeavyTank':			newObj = MapObject(xPos, yPos, color, 14)
+					elif mo['icon'] == 'TankDestroyer':		newObj = MapObject(xPos, yPos, color, 15)
+					elif mo['icon'] == 'Tracked':			newObj = MapObject(xPos, yPos, color, 16)
+					elif mo['icon'] == 'Wheeled':			newObj = MapObject(xPos, yPos, color, 17)
+					elif mo['icon'] == 'Ship':				newObj = MapObject(xPos, yPos, color, 18)
+					elif mo['icon'] == 'Boat':				newObj = MapObject(xPos, yPos, color, 19)
+					elif mo['icon'] == 'TorpedoBoat':		newObj = MapObject(xPos, yPos, color, 20)
+					elif mo['icon'] == 'bombing_point':		newObj = MapObject(xPos, yPos, color, 21)
+					elif mo['icon'] == 'defending_point':	newObj = MapObject(xPos, yPos, color, 22)
+					elif mo['icon'] == 'ground_model':		print('NOT Drawing ground_model at', xPos, yPos)	# dunno what it is?
 					else:	# unknown object, shown by a colored circle/dot
 						print('Drawing unknown object:\n', mo)
-						self.drawList.append(MapObject(xPos, yPos, color, 0))
-				# an object has been created, corrects it's position to be center of the icon
-
-
-
-
+						newObj = MapObject(xPos, yPos, color, 0)
+				self.drawList.append(newObj)
 		self.drawList.sort(key=lambda x: x.type)
 
 
@@ -706,22 +682,34 @@ class WarThunderMap():
 
 
 
+# 				seen = set()
+# 				unikke = [seen.add(obj.type) or obj for obj in self.drawList if obj.type not in seen]
+# #				print('LAENGDE:', len(unikke))
+# #				for x in unikke:
+# #					print(x.type)
+# #				sys.exit()
+# 				unikke.append(MapObject(11, 1, colors.red, 7))
 
-				# testing objects' position
-				unikke = []
-				for x in range(0, 23):
-					unikke.append(MapObject(11, 1, colors.red, x))
-				unikke.append(MapObject(11, 1, colors.red, 95))
-				unikke.append(MapObject(11, 1, colors.red, 99))
-				unikke.append(MapObject(11, 1, colors.red, 100))
-				# kryds paa 100,100
-				pygame.draw.line(self.display, colors.red, (100, 50), (100, 150))
-				pygame.draw.line(self.display, colors.red, (50, 100), (150, 100))
-				pygame.draw.line(self.display, colors.green, (100, 100), (200, 200))
-				tObj = unikke[correction[0]]
-				tObj.xPos = 100 - 19
-				tObj.yPos = 100 - 19
-				tObj.draw(self.display, self.zoomFactor)
+# 				# # testing objects' position
+# 				# unikke = []
+# 				# for x in range(0, 23):
+# 				# 	unikke.append(MapObject(11, 1, colors.red, x))
+# 				# unikke.append(MapObject(11, 1, colors.red, 95))
+# 				# unikke.append(MapObject(11, 1, colors.red, 99))
+# 				# for obj in self.drawList:
+# 				# 	if obj.type == 100:
+# 				# 		unikke.append(obj)
+# 				# kryds paa 100,100
+# 				pygame.draw.line(self.display, colors.red, (100, 50), (100, 150))
+# 				pygame.draw.line(self.display, colors.red, (50, 100), (150, 100))
+# 				pygame.draw.line(self.display, colors.green, (100, 100), (200, 200))
+# 				tObj = unikke[correction[0]]
+# 				tObj.xPos = 100 - 19
+# 				tObj.yPos = 100 - 19
+# 				tObj.draw(self.display, self.zoomFactor)
+# #				print(unikke)
+# #				print(len(unikke))
+# #				sys.exit()
 
 
 
@@ -759,9 +747,7 @@ obj = WarThunderMap()
 
 # --- TODO -------------------------------------------zzz--------------------------------------------
 # - fix wrong scale of airplanes on seamaps
-# - objekter flytter sig naar man skifter view paa spilllere
 
-# - weird movement of player in zoom  (noget med zoom-factor?)
 
 
 
