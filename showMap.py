@@ -14,6 +14,7 @@ from PIL import Image
 # --- Variables -----------------------------------------------------------------------------------
 
 pygame.init()
+version = '1.0'	# All done
 font09 = pygame.font.Font('freesansbold.ttf', 9)
 font20 = pygame.font.Font('freesansbold.ttf', 20)
 font30 = pygame.font.Font('freesansbold.ttf', 30)
@@ -22,7 +23,7 @@ baseUrl = 'http://127.0.0.1:8111/'.rstrip('/')
 #mapInfo = json.loads(requests.get(baseUrl + 'map_info.json').content)
 #print(json.dumps(mapObj, indent=2, sort_keys=True))
 objTypes = []
-correction = [0, 0, 0.0]
+correction = [0, 0, 1.0]
 zoneLetters = ['A', 'B', 'C', 'D']
 msgActions = ['destroyed', 'has achieved', 'has disconnected', 'set afire', 'has delivered', 'damaged', 'shot down', 'has crashed', 'performed a soft landing', 'has been wrecked']
 gridLetters = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z', 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z']
@@ -195,8 +196,8 @@ class MapObject():
 
 	def draw(self, _display, _zoom):
 		w, h = self.image.get_size()
-		x = int((19 + self.xPos + _zoom[0]) * _zoom[2]) - int(w / 2)# + correction[0]
-		y = int((19 + self.yPos + _zoom[1]) * _zoom[2]) - int(h / 2)# + correction[1]
+		x = int( correction[2] * (19 + self.xPos + _zoom[0]) * _zoom[2]) - int(w / 2) + correction[0]
+		y = int( correction[2] * (19 + self.yPos + _zoom[1]) * _zoom[2]) - int(h / 2) + correction[1]
 		_display.blit(self.image, (x, y) )
 
 
@@ -239,7 +240,6 @@ class WarThunderMap():
 		if self.mapObjects == []:
 			return False
 		else:
-			if args.debug: print("self.mapObjects (in getMapObjects):", self.mapObjects)
 			return True
 
 
@@ -252,44 +252,7 @@ class WarThunderMap():
 			self.mapInfo = json.loads(reply.content) if reply.content != b'' else json.loads(b'[]')
 		except:
 			self.mapInfo = json.loads(b'[]')
-		if args.debug: print("self.mapInfo (in getMapInfo):", self.mapInfo)
 
-
-	def getTextObjects(self):
-		""" querys server for chat and messages and updates self.chatBuffer and self.msgBuffer """
-		fileUrl1 = 'gamechat?lastId=' + str(self.lastId[0])
-		fileUrl2 = 'hudmsg?lastEvt=0&lastDmg=' + str(self.lastId[1])
-		url1 = f"{baseUrl}/{fileUrl1}"
-		url2 = f"{baseUrl}/{fileUrl2}"
-		try:
-			reply = requests.get(url1)
-			rawChat = json.loads(reply.content)
-			for item in rawChat:	# fixing html error in text
-				item['msg'] = item['msg'].split('<color=')[0]
-				item['msg'] = item['msg'].encode("ascii", "ignore").decode()
-				item['time'] = self.timeFromMapLoaded()
-			self.chatBuffer += rawChat
-			self.chatBuffer = self.chatBuffer[-16:]
-		except:
-			pass
-		try:
-			reply = requests.get(url2)
-			rawMsg = json.loads(reply.content)
-			fMsg = rawMsg['damage']
-			for item in fMsg:	# fixing html error in text
-				item['msg'] = item['msg'].encode("ascii", "ignore").decode()
-				item['time'] = self.timeFromMapLoaded()
-			self.msgBuffer += fMsg
-			self.msgBuffer = self.msgBuffer[-16:]
-		except:
-			pass
-		if self.chatBuffer:
-			self.lastId[0] = self.chatBuffer[-1]['id']
-		if self.msgBuffer:
-			self.lastId[1] = self.msgBuffer[-1]['id']
-		if args.debug: print("self.chatBuffer (in getTextObjects):", self.chatBuffer)
-		if args.debug: print("self.msgBuffer (in getTextObjects):", self.msgBuffer)
-		return True
 
 
 	def drawGrid(self):
@@ -335,82 +298,159 @@ class WarThunderMap():
 
 
 
-	def writeChat(self):
-		""" writes all strings from buffer in upper window """
-		yPos = 25
-		pygame.draw.rect(self.display, colors.darkGrey, (1048, 19,  860, 493))	# background
-		for nr, ts in enumerate(self.chatBuffer):
-			if ts['mode'] == "Team": txtColor = colors.grey
-			elif ts['mode'] == "Squad": txtColor = colors.green
-			else: txtColor = colors.blue
-			if ts['sender'] == 'PrinceOfCats':	userNameColor = colors.cyan		# Hardcoded own username!
-			else: 								userNameColor = colors.orange
-			text1 = font20.render(ts['time'], True, colors.red, colors.darkGrey)
-			text2 = font20.render(ts['sender'] + ':', True, userNameColor, colors.darkGrey)
-			text3 = font20.render(ts['msg'], True, txtColor, colors.darkGrey)
-			textRect1 = text1.get_rect()
-			textRect2 = text2.get_rect()
-			textRect3 = text3.get_rect()
-			textRect1.topleft = (1055, yPos)
-			textRect2.topleft = (1120, yPos)
-			textRect3.topleft = (1130 + textRect2.w, yPos)
-			if ts['time'] != '00:00':
-				self.display.blit(text1, textRect1)
-				self.display.blit(text2, textRect2)
-				self.display.blit(text3, textRect3)
-				yPos += 30
+	def getTextObjects(self):
+		""" querys server for chat and messages and updates self.chatBuffer and self.msgBuffer """
+		fileUrl1 = 'gamechat?lastId=' + str(self.lastId[0])
+		fileUrl2 = 'hudmsg?lastEvt=0&lastDmg=' + str(self.lastId[1])
+		url1 = f"{baseUrl}/{fileUrl1}"
+		url2 = f"{baseUrl}/{fileUrl2}"
+		_rawChat = []
+		_rawMsg = []
+		try:
+				reply = requests.get(url1)
+				rawChat = json.loads(reply.content)
+				for item in rawChat:    # fixing html error in text
+						item['msg'] = item['msg'].split('<color=')[0]
+						item['msg'] = item['msg'].encode("ascii", "ignore").decode()
+						item['time'] = self.timeFromMapLoaded()
+				_rawChat += rawChat
+		except:
+				pass
+		try:
+				reply = requests.get(url2)
+				rawMsg = json.loads(reply.content)
+				fMsg = rawMsg['damage']
+				for item in fMsg:       # fixing html error in text
+						item['msg'] = item['msg'].encode("ascii", "ignore").decode()
+						item['time'] = self.timeFromMapLoaded()
+				_rawMsg += fMsg
+		except:
+				pass
+		# formating chat
+		output = []
+		for r in _rawChat:
+			index = 55
+			if len(r['msg']) > index:
+				while r['msg'][index] != ' ' and index != 0:
+					index -= 1
+				if index == 0: index = 55
+				msg1 = r['msg'][:index]
+				msg2 = r['msg'][index:]
+				if len(msg2) > 55:
+					msg2 = msg2[:52] + '...'
+				output.append([r['time'], r['sender'], msg1, r['mode']])
+				output.append(['     ', ' ', '   ' + msg2[:55], r['mode']])
+			else:
+				output.append([r['time'], r['sender'], r['msg'], r['mode']])
+		if _rawChat: self.lastId[0] = _rawChat[-1]['id']	# update lastID
+		self.chatBuffer += output
+		# remove messages from start, if they are part of compound messages
+		if self.chatBuffer:
+			counter = 0
+			while self.chatBuffer[counter][0] == '     ':
+				self.chatBuffer[counter][0] = '00:00'
+				counter += 1
+		#formating messages
+		output = []
+		for r in _rawMsg:
+			if '(' in r['msg']:
+				username, remaining = r['msg'].split(' (', 1)
+				if ') ' in r['msg']:
+					rawVessel, remaining = remaining.split(') ', 1)
+					vessel = '(' + rawVessel + ')'
+					for a in msgActions:
+						if a in remaining:
+							action = a
+							remaining = (remaining.split(a)[1]).strip()
+					if '(' in remaining:
+						directObject, vessel2 = remaining.split('(', 1)
+						vessel2 = '(' + vessel2
+					else:
+						vessel2 = ''
+						directObject = remaining
+					if args.debug and action == '': print('MISING (in) ACTION:', directObject)												# DEBUG / DEV
+				if len(r['msg']) > 75:
+					output.append([r['time'], username, vessel, action, '', ''])
+					output.append(['', '', '', '', directObject.strip(), vessel2])
+				else:
+					output.append([r['time'], username, vessel, action, directObject.strip(), vessel2])
+			else:
+				# service message from the server, ignored
+				pass
+		self.msgBuffer += output
+		if _rawMsg: self.lastId[1] = _rawMsg[-1]['id']
+		# trim both buffers
+		self.chatBuffer = self.chatBuffer[-16:]
+		self.msgBuffer = self.msgBuffer[-16:]
 		return True
+
 
 
 	def writeMsg(self):
 		""" writes all strings from buffer in lower window """
 		yPos = 547
 		pygame.draw.rect(self.display, colors.darkGrey, (1048, 538, 860, 493))	# background
-		for nr, ts in enumerate(self.msgBuffer):
-			action = ''
-			if '(' in ts['msg']:
-				username, remaining = ts['msg'].split(' (', 1)
-				if ') ' in ts['msg']:
-					vessel, remaining = remaining.split(') ', 1)
-					for a in msgActions:
-						if a in remaining:
-							action = a
-							remaining = (remaining.split(a)[1]).strip()
-					if '(' in remaining:
-						remaining, vessel2 = remaining.split('(', 1)
-						vessel2 = '(' + vessel2
-					else: vessel2 = ''
-					if action == '': print('MIISING (in) ACTION:', remaining)												# DEBUG / DEV
-					if username == 'PrinceOfCats':	userNameColor = colors.cyan		# Hardcoded own username!
-					else: 							userNameColor = colors.orange
-					if remaining == 'PrinceOfCats ':	remColor = colors.cyan		# Hardcoded own username!
-					else: 							remColor = colors.grey
-					text1 = font20.render(ts['time'], 			True, colors.red, colors.darkGrey)
-					text2 = font20.render(username,				True, userNameColor, colors.darkGrey)
-					text3 = font20.render('(' + vessel + ')', 	True, colors.green, colors.darkGrey)
-					text4 = font20.render(action,				True, (255, 0, 255), colors.darkGrey)
-					text5 = font20.render(remaining,				True, remColor, colors.darkGrey)
-					text6 = font20.render(vessel2,				True, colors.green, colors.darkGrey)
-					textRect1 = text1.get_rect()
-					textRect2 = text2.get_rect()
-					textRect3 = text3.get_rect()
-					textRect4 = text4.get_rect()
-					textRect5 = text5.get_rect()
-					textRect6 = text6.get_rect()
-					textRect1.topleft = (1050, yPos)
-					textRect2.topleft = (1115, yPos)
-					textRect3.topleft = (1125 + textRect2.w, yPos)
-					textRect4.topleft = (1135 + textRect2.w + textRect3.w, yPos)
-					textRect5.topleft = (1145 + textRect2.w + textRect3.w + textRect4.w, yPos)
-					textRect6.topleft = (1150 + textRect2.w + textRect3.w + textRect4.w + textRect5.w, yPos)
-					if ts['time'] != '00:00':
-						self.display.blit(text1, textRect1)
-						self.display.blit(text2, textRect2)
-						self.display.blit(text3, textRect3)
-						self.display.blit(text4, textRect4)
-						self.display.blit(text5, textRect5)
-						self.display.blit(text6, textRect6)
-						yPos += 30
+		for entry in self.msgBuffer:
+			if currentUser:
+				if entry[1] == currentUser:	userNameColor = colors.cyan
+				else: 						userNameColor = colors.orange
+				if entry[4] == currentUser:	remColor = colors.cyan
+				else: 						remColor = colors.grey
+			text1 = font20.render(entry[0], True, colors.red, colors.darkGrey)
+			text2 = font20.render(entry[1],	True, userNameColor, colors.darkGrey)
+			text3 = font20.render(entry[2],	True, colors.green, colors.darkGrey)
+			text4 = font20.render(entry[3],	True, (255, 0, 255), colors.darkGrey)
+			text5 = font20.render(entry[4],	True, remColor, colors.darkGrey)
+			text6 = font20.render(entry[5],	True, colors.green, colors.darkGrey)
+			textRect1 = text1.get_rect()
+			textRect2 = text2.get_rect()
+			textRect3 = text3.get_rect()
+			textRect4 = text4.get_rect()
+			textRect5 = text5.get_rect()
+			textRect6 = text6.get_rect()
+			textRect1.topleft = (1058, yPos)
+			textRect2.topleft = (1120, yPos)
+			textRect3.topleft = (1128 + textRect2.w, yPos)
+			textRect4.topleft = (1138 + textRect2.w + textRect3.w, yPos)
+			textRect5.topleft = (1148 + textRect2.w + textRect3.w + textRect4.w, yPos)
+			textRect6.topleft = (1155 + textRect2.w + textRect3.w + textRect4.w + textRect5.w, yPos)
+			if entry[0] != '00:00':
+				self.display.blit(text1, textRect1)
+				self.display.blit(text2, textRect2)
+				self.display.blit(text3, textRect3)
+				self.display.blit(text4, textRect4)
+				self.display.blit(text5, textRect5)
+				self.display.blit(text6, textRect6)
+				yPos += 30
+		return True
+
+
+
+	def writeChat(self):
+		""" writes all strings from buffer in upper window """
+		yPos = 25
+		pygame.draw.rect(self.display, colors.darkGrey, (1048, 19,  860, 493))	# background
+		for time, sender, message, mode in self.chatBuffer:
+			if mode == "Team": txtColor = colors.grey
+			elif mode == "Squad": txtColor = colors.green
+			else: txtColor = colors.blue
+			if currentUser:
+				if sender == currentUser:	userNameColor = colors.cyan
+				else: 							userNameColor = colors.orange
+			text1 = font20.render(time, True, colors.red, colors.darkGrey)
+			text2 = font20.render(sender + ':', True, userNameColor, colors.darkGrey)
+			text3 = font20.render(message, True, txtColor, colors.darkGrey)
+			textRect1 = text1.get_rect()
+			textRect2 = text2.get_rect()
+			textRect3 = text3.get_rect()
+			textRect1.topleft = (1058, yPos)
+			textRect2.topleft = (1120, yPos)
+			textRect3.topleft = (1128 + textRect2.w, yPos)
+			if time != '00:00':
+				self.display.blit(text1, textRect1)
+				self.display.blit(text2, textRect2)
+				self.display.blit(text3, textRect3)
+				yPos += 30
 		return True
 
 
@@ -493,7 +533,6 @@ class WarThunderMap():
 			_cutOut = self.pgImage.subsurface((self.zoomCoords[0] * self.scale, self.zoomCoords[1] * self.scale, self.zoomCoords[2] * self.scale, self.zoomCoords[3] * self.scale))
 			self.mapZoomed = pygame.transform.scale(_cutOut, (self.mapWidth, self.mapWidth))
 			self.zoomFactor = [-self.zoomCoords[0], -self.zoomCoords[1], self.mapWidth / self.zoomCoords[2]] if args.zoom else [0, 0, 1.0]
-			if args.debug: print('no of objects at time of zoom calculation:', len( self.mapObjects ))
 		# draw frames
 		self.display.fill(colors.background)
 		if args.updatezoom:
@@ -540,7 +579,7 @@ class WarThunderMap():
 		self.chatBuffer = []
 		self.msgBuffer = []
 		self.lastId[0] = 1
-		if args.debug: print('Initiating new map')
+
 
 
 	def createMapObjects(self):
@@ -619,7 +658,7 @@ class WarThunderMap():
 					elif mo['icon'] == 'bombing_point':		newObj = MapObject(xPos, yPos, color, 21)
 					elif mo['icon'] == 'defending_point':	newObj = MapObject(xPos, yPos, color, 22)
 					elif mo['icon'] == 'ground_model':		print('NOT Drawing ground_model at', xPos, yPos)	# dunno what it is?
-					else:	# unknown object, shown by a colored circle/dot
+					elif args.debug:	# unknown object, shown by a colored circle/dot
 						print('Drawing unknown object:\n', mo)
 						newObj = MapObject(xPos, yPos, color, 0)
 				self.drawList.append(newObj)
@@ -633,7 +672,7 @@ class WarThunderMap():
 			if event.type == pygame.QUIT:
 				self.running = False
 			elif event.type == pygame.KEYUP:
-				if event.key == pygame.K_q or event.key == pygame.K_ESCAPE:
+				if event.key == pygame.K_ESCAPE:
 					self.running = False
 				elif event.key == pygame.K_z:
 					args.zoom = False if args.zoom else True
@@ -652,16 +691,6 @@ class WarThunderMap():
 				elif event.key == pygame.K_DOWN:
 					correction[1] += 1
 					print(correction)
-				elif event.key == pygame.K_w:
-					correction[2] -= 0.1
-					print(correction)
-				elif event.key == pygame.K_s:
-					correction[2] += 0.1
-					print(correction)
-				elif event.key == pygame.K_p:
-					print(self.zoomCoords)
-					print(self.zoomFactor)
-					time.sleep(3)
 
 
 	def loop(self):
@@ -677,46 +706,6 @@ class WarThunderMap():
 				self.writeChat()
 				self.writeMsg()
 				self.drawBorders()
-
-
-
-
-
-# 				seen = set()
-# 				unikke = [seen.add(obj.type) or obj for obj in self.drawList if obj.type not in seen]
-# #				print('LAENGDE:', len(unikke))
-# #				for x in unikke:
-# #					print(x.type)
-# #				sys.exit()
-# 				unikke.append(MapObject(11, 1, colors.red, 7))
-
-# 				# # testing objects' position
-# 				# unikke = []
-# 				# for x in range(0, 23):
-# 				# 	unikke.append(MapObject(11, 1, colors.red, x))
-# 				# unikke.append(MapObject(11, 1, colors.red, 95))
-# 				# unikke.append(MapObject(11, 1, colors.red, 99))
-# 				# for obj in self.drawList:
-# 				# 	if obj.type == 100:
-# 				# 		unikke.append(obj)
-# 				# kryds paa 100,100
-# 				pygame.draw.line(self.display, colors.red, (100, 50), (100, 150))
-# 				pygame.draw.line(self.display, colors.red, (50, 100), (150, 100))
-# 				pygame.draw.line(self.display, colors.green, (100, 100), (200, 200))
-# 				tObj = unikke[correction[0]]
-# 				tObj.xPos = 100 - 19
-# 				tObj.yPos = 100 - 19
-# 				tObj.draw(self.display, self.zoomFactor)
-# #				print(unikke)
-# #				print(len(unikke))
-# #				sys.exit()
-
-
-
-
-
-
-
 				pygame.display.update()
 			else:
 				_clearScreen = pygame.Surface((self.width, self.height))
@@ -740,20 +729,25 @@ parser.add_argument("-z", "--zoom",			action="store_true",	help="Automatically z
 parser.add_argument("-s", "--showzoom",		action="store_true",	help="Shows a rectangle on the area of the calculated zoom area")
 parser.add_argument("-c", "--showcorners",	action="store_true",	help="Shows the four corners of draw-area (for debugging)")
 parser.add_argument("-u", "--updatezoom",	action="store_true",	help="Recalculate zoom for each frame")
+parser.add_argument("-k", "--keys",			action="store_true",	help="Print key usage and exit")
+parser.add_argument("-v", "--version",		action="store_true",	help="Print version and exit")
+parser.add_argument("--username",			nargs=1,				help="Higlight selected username in game messages")
 args = parser.parse_args()
+if args.version:
+	sys.exit('\n  Current version is ' + version + '\n')
+if args.keys:
+	sys.exit('\n  <ESC>:\t\tQuit program\n  <Z>:\t\t\tZoom/unzoom to calculated area\n  <Arrow Keys>:\t\tAdjust offset of objects"\n')
+currentUser = None if args.username == None else args.username[0]
 
 colors = colorList
 obj = WarThunderMap()
 
-# --- TODO -------------------------------------------zzz--------------------------------------------
-# - fix wrong scale of airplanes on seamaps
+# --- TODO ---------------------------------------------------------------------------------------
+# - ?
 
 
 
-
-
-# In the menu, you can turn the tracking system on or off for falling of your shells with a caliber equal to or greater than 100 mm.
-
+# --- NOTES --------------------------------------------------------------------------------------
 # http://127.0.0.1:8111/gamechat?lastId=1
 # http://127.0.0.1:8111/hudmsg?lastEvt=0&lastDmg=1
 # http://127.0.0.1:8111/map_info.json
