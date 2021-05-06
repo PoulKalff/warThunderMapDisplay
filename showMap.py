@@ -353,6 +353,7 @@ class WarThunderMap():
 		#formating messages
 		output = []
 		for r in _rawMsg:
+			username, vessel, action, directObject, vessel2 = '','','','',''
 			if '(' in r['msg']:
 				username, remaining = r['msg'].split(' (', 1)
 				if ') ' in r['msg']:
@@ -366,7 +367,6 @@ class WarThunderMap():
 						directObject, vessel2 = remaining.split('(', 1)
 						vessel2 = '(' + vessel2
 					else:
-						vessel2 = ''
 						directObject = remaining
 					if args.debug and action == '': print('MISING (in) ACTION:', directObject)												# DEBUG / DEV
 				if len(r['msg']) > 75:
@@ -437,8 +437,9 @@ class WarThunderMap():
 			if currentUser:
 				if sender == currentUser:	userNameColor = colors.cyan
 				else: 							userNameColor = colors.orange
+			delimiter = ':' if sender != ' ' else ''
 			text1 = font20.render(time, True, colors.red, colors.darkGrey)
-			text2 = font20.render(sender + ':', True, userNameColor, colors.darkGrey)
+			text2 = font20.render(sender + delimiter, True, userNameColor, colors.darkGrey)
 			text3 = font20.render(message, True, txtColor, colors.darkGrey)
 			textRect1 = text1.get_rect()
 			textRect2 = text2.get_rect()
