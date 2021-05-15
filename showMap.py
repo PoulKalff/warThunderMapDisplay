@@ -10,10 +10,19 @@ import argparse
 import pygame.locals
 from io import BytesIO
 from PIL import Image
+try:
+	from googletrans import Translator		# pip install googletrans==3.1.0a0
+	translator = Translator()
+	TranslateEnabled = True
+except:
+	TranslateEnabled = False
+
 
 # --- Variables -----------------------------------------------------------------------------------
 
+
 pygame.init()
+translator = Translator()
 version = '1.0'	# All done
 font09 = pygame.font.Font('freesansbold.ttf', 9)
 font20 = pygame.font.Font('freesansbold.ttf', 20)
@@ -27,9 +36,23 @@ correction = [0, 0, 1.0]
 zoneLetters = ['A', 'B', 'C', 'D']
 msgActions = ['destroyed', 'has achieved', 'has disconnected', 'set afire', 'has delivered', 'damaged', 'shot down', 'has crashed', 'performed a soft landing', 'has been wrecked']
 gridLetters = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z', 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z']
-
+languageCodes = {'af': 'afrikaans', 'sq': 'albanian', 'am': 'amharic', 'ar': 'arabic', 'hy': 'armenian', 'az': 'azerbaijani', 'eu': 'basque', 'be': 'belarusian', 'bn': 'bengali', 'bs': 'bosnian', 'bg': 'bulgarian', 'ca': 'catalan', 'ceb': 'cebuano', 'ny': 'chichewa', 'zh-cn': 'chinese (simplified)', 'zh-tw': 'chinese (traditional)', 'co': 'corsican', 'hr': 'croatian', 'cs': 'czech', 'da': 'danish', 'nl': 'dutch', 'en': 'english', 'eo': 'esperanto', 'et': 'estonian', 'tl': 'filipino', 'fi': 'finnish', 'fr': 'french', 'fy': 'frisian', 'gl': 'galician', 'ka': 'georgian', 'de': 'german', 'el': 'greek', 'gu': 'gujarati', 'ht': 'haitian creole', 'ha': 'hausa', 'haw': 'hawaiian', 'iw': 'hebrew', 'he': 'hebrew', 'hi': 'hindi', 'hmn': 'hmong', 'hu': 'hungarian', 'is': 'icelandic', 'ig': 'igbo', 'id': 'indonesian', 'ga': 'irish', 'it': 'italian', 'ja': 'japanese', 'jw': 'javanese', 'kn': 'kannada', 'kk': 'kazakh', 'km': 'khmer', 'ko': 'korean', 'ku': 'kurdish (kurmanji)', 'ky': 'kyrgyz', 'lo': 'lao', 'la': 'latin', 'lv': 'latvian', 'lt': 'lithuanian', 'lb': 'luxembourgish', 'mk': 'macedonian', 'mg': 'malagasy', 'ms': 'malay', 'ml': 'malayalam', 'mt': 'maltese', 'mi': 'maori', 'mr': 'marathi', 'mn': 'mongolian', 'my': 'myanmar (burmese)', 'ne': 'nepali', 'no': 'norwegian', 'or': 'odia', 'ps': 'pashto', 'fa': 'persian', 'pl': 'polish', 'pt': 'portuguese', 'pa': 'punjabi', 'ro': 'romanian', 'ru': 'russian', 'sm': 'samoan', 'gd': 'scots gaelic', 'sr': 'serbian', 'st': 'sesotho', 'sn': 'shona', 'sd': 'sindhi', 'si': 'sinhala', 'sk': 'slovak', 'sl': 'slovenian', 'so': 'somali', 'es': 'spanish', 'su': 'sundanese', 'sw': 'swahili', 'sv': 'swedish', 'tg': 'tajik', 'ta': 'tamil', 'te': 'telugu', 'th': 'thai', 'tr': 'turkish', 'uk': 'ukrainian', 'ur': 'urdu', 'ug': 'uyghur', 'uz': 'uzbek', 'vi': 'vietnamese', 'cy': 'welsh', 'xh': 'xhosa', 'yi': 'yiddish', 'yo': 'yoruba', 'zu': 'zulu'}
 
 # --- Functions -----------------------------------------------------------------------------------
+
+def translateChat(textInd, targetLang = 'en'):
+	if not TranslateEnabled:
+		return textInd
+	try:
+		langDetected = translator.detect(textInd).lang
+		translatedMsg = translator.translate(textInd, dest=targetLang).text
+	except:
+		print('Exception in translateChat()')
+		langDetected = 'Failed to translate'
+		translatedMsg = textInd
+	langNote = '' if langDetected == targetLang else '(' + languageCodes[langDetected].capitalize() + ') : '
+	return langNote + translatedMsg
+
 
 # --- Classes -------------------------------------------------------------------------------------
 
@@ -47,6 +70,7 @@ class colorList:
 	green =			(70, 180, 50)
 	blue =			(80, 120, 250)
 	background =	(55, 55, 55)
+	yellow = 		(255, 255, 0)
 
 
 class MapObject():
@@ -338,9 +362,16 @@ class WarThunderMap():
 				msg2 = r['msg'][index:]
 				if len(msg2) > 55:
 					msg2 = msg2[:52] + '...'
+				# Translating if it has been enabled
+				if args.translate:
+					msg1 = translateChat(msg1)
+					msg2 = translateChat(msg2)
 				output.append([r['time'], r['sender'], msg1, r['mode']])
 				output.append(['     ', ' ', '   ' + msg2[:55], r['mode']])
 			else:
+				# Translating if it has been enabled
+				if args.translate:
+					r['msg'] = translateChat(r['msg'])
 				output.append([r['time'], r['sender'], r['msg'], r['mode']])
 		if _rawChat: self.lastId[0] = _rawChat[-1]['id']	# update lastID
 		self.chatBuffer += output
@@ -628,7 +659,13 @@ class WarThunderMap():
 					angle = int( math.degrees(radians) )
 					newObj = MapObject(xPos + 10, yPos + 10, colors.white, 100, angle)
 				else:
-					color = tuple( mo['color[]'] ) if not mo['blink'] or self.blinkingInterval != 1 else (255,255,0)
+					color = tuple( mo['color[]'] ) if not mo['blink'] or (int(time.time()) % 2) else colors.yellow
+
+
+
+
+
+
 					if mo['icon'] == 'capture_zone':
 						newObj = MapObject(xPos, yPos, color, 99)
 					elif mo['icon'] == 'respawn_base_bomber':
@@ -675,6 +712,8 @@ class WarThunderMap():
 			elif event.type == pygame.KEYUP:
 				if event.key == pygame.K_ESCAPE:
 					self.running = False
+				if event.key == pygame.K_q:
+					self.running = False
 				elif event.key == pygame.K_z:
 					args.zoom = False if args.zoom else True
 					self.zoomCoords = self.calculateZoom()
@@ -692,6 +731,8 @@ class WarThunderMap():
 				elif event.key == pygame.K_DOWN:
 					correction[1] += 1
 					print(correction)
+				elif event.key == pygame.K_d:
+					print(self.chatBuffer)
 
 
 	def loop(self):
@@ -732,19 +773,22 @@ parser.add_argument("-c", "--showcorners",	action="store_true",	help="Shows the 
 parser.add_argument("-u", "--updatezoom",	action="store_true",	help="Recalculate zoom for each frame")
 parser.add_argument("-k", "--keys",			action="store_true",	help="Print key usage and exit")
 parser.add_argument("-v", "--version",		action="store_true",	help="Print version and exit")
+parser.add_argument("-t", "--translate",	action="store_true",	help="Translate chat messages in other languages")
 parser.add_argument("--username",			nargs=1,				help="Higlight selected username in game messages")
 args = parser.parse_args()
 if args.version:
 	sys.exit('\n  Current version is ' + version + '\n')
 if args.keys:
 	sys.exit('\n  <ESC>:\t\tQuit program\n  <Z>:\t\t\tZoom/unzoom to calculated area\n  <Arrow Keys>:\t\tAdjust offset of objects"\n')
+if args.translate and not TranslateEnabled:
+	sys.exit('\n  Cannot enable translation: googleTranslateAPI not installed on system ("pip install googletrans==3.1.0a0") \n')
 currentUser = None if args.username == None else args.username[0]
 
 colors = colorList
 obj = WarThunderMap()
 
 # --- TODO ---------------------------------------------------------------------------------------
-# - ?
+# - 
 
 
 
